@@ -3,8 +3,6 @@
 # Run from anywhere: bash /opt/eul/setup/start.sh
 # Attach after: tmux attach -t eul
 
-set -euo pipefail
-
 SESSION="eul"
 tmux kill-session -t $SESSION 2>/dev/null || true
 kill $(pgrep sclang) $(pgrep scsynth) $(pgrep jackd) $(pgrep Xvfb) $(pgrep darkice) $(pgrep icecast2) 2>/dev/null || true
@@ -38,11 +36,12 @@ tmux send-keys -t $SESSION:4 "darkice -c /opt/eul/config/darkice.cfg >/var/log/e
 sleep 3
 
 # Wire SuperCollider output → DarkIce input in JACK
-# Without this the stream is silent
-jack_connect SuperCollider:out_1 darkice-$(pgrep darkice):left  2>/dev/null || \
-  jack_connect SuperCollider:out_1 $(jack_lsp | grep darkice | grep left | head -1) 2>/dev/null || true
-jack_connect SuperCollider:out_2 darkice-$(pgrep darkice):right 2>/dev/null || \
-  jack_connect SuperCollider:out_2 $(jack_lsp | grep darkice | grep right | head -1) 2>/dev/null || true
+# DarkIce names its ports darkice-{PID}:left/right — find them dynamically
+DARKICE_LEFT=$(jack_lsp | grep "darkice.*left")
+DARKICE_RIGHT=$(jack_lsp | grep "darkice.*right")
+jack_connect SuperCollider:out_1 "$DARKICE_LEFT"
+jack_connect SuperCollider:out_2 "$DARKICE_RIGHT"
+echo "JACK routed: SuperCollider -> $DARKICE_LEFT / $DARKICE_RIGHT"
 
 # 5: TidalCycles REPL — interactive pattern input
 tmux new-window -t $SESSION
