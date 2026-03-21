@@ -26,7 +26,7 @@ INTERVAL_MINUTES = 30  # how often to evolve
 
 DRUM_BANKS = ["dungeondrums", "rad"]
 CHORD_SAMPLES = [f"ls:{i}" for i in range(9)]
-VOICE_SAMPLE = "discoveryone:1"  # the voice file
+VOICE_SAMPLE = "discoveryone:0"  # the voice file
 
 def send(line):
     """Send a line to the TidalCycles REPL."""
