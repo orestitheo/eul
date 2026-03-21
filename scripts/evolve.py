@@ -126,11 +126,8 @@ def pick_drums_and_chords(mode):
     drum_gain = round(random.uniform(0.7, 1.0) if mode == "drums" else random.uniform(0.5, 0.8), 1)
     drum_every_rev = random.randint(3, 6)
     drum_every_fast = random.randint(6, 10)
-    use_delay = random.random() < 0.5
-    delay_str = (
-        f' # delay (sometimes (const 0.5) 0) # delaytime {random.choice([0.25, 0.375, 0.5])} # delayfeedback 0.3'
-        if use_delay else ""
-    )
+    delay_str = f' # delay (sometimes (const 0.5) 0) # delaytime {random.choice([0.25, 0.375, 0.5])} # delayfeedback 0.3'
+    flanger_str = ' # shape 0.4 # coarse (sometimes (const 2) 1)' if random.random() < 0.3 else ""
 
     drums = (
         f'd4 $ whenmod {total} {drum_on} id'
@@ -141,6 +138,7 @@ def pick_drums_and_chords(mode):
         f' # speed (range 0.8 1.2 rand)'
         f' # pan (range 0.3 0.7 rand)'
         f'{delay_str}'
+        f'{flanger_str}'
     )
 
     num_chords = random.randint(3, 6)
