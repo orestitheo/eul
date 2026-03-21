@@ -8,64 +8,64 @@ Always-on generative music radio station. Streams 24/7 at `http://204.168.163.80
 TidalCycles (patterns) → SuperCollider/SuperDirt (audio engine) → JACK (routing) → DarkIce (encoder) → Icecast (HTTP stream)
 ```
 
-- **TidalCycles** — you write patterns here, they play immediately
-- **SuperDirt** — loads your samples, handles effects, synthesis
-- **JACK** — virtual audio cable between SuperCollider and DarkIce
-- **DarkIce** — encodes audio to MP3 192kbps
-- **Icecast** — serves the stream over HTTP
+- **TidalCycles** — pattern language. Each `d1`–`d6` line is one audio channel. Send a new line, it changes immediately on the next cycle.
+- **SuperDirt** — loads your samples, handles effects (reverb, delay, filters, etc.)
+- **JACK** — virtual audio cable between SuperCollider and DarkIce (headless, no soundcard needed)
+- **DarkIce** — encodes the JACK audio to MP3 192kbps
+- **Icecast** — serves it as an HTTP stream
+- **evolve.py** — Python script that runs every 30 minutes, generates new pattern lines and sends them to the REPL automatically
 
 ---
 
-## Workflows
+## Adding new samples (full workflow)
 
-### Adding new samples
-
-1. Drop files into `samples/` in the right subfolder:
+1. **Drop files** into the right subfolder under `samples/`:
    ```
    samples/
-     drone/        — long sustained tones, pads
-     texture/      — field recordings, noise, ambience
-     percussive/   — add a new subfolder per kit (e.g. percussive/mykick/)
-     melodic/      — pitched material
+     drone/              — sustained tones, pads, anything long and ambient
+     texture/            — field recordings, noise, found sounds
+     percussive/         — one subfolder per kit (e.g. percussive/mykick/)
+     melodic/chords/     — one subfolder per chord set (e.g. melodic/chords/mypack/)
+     melodic/singletone/ — one subfolder for voice/single tone sources
    ```
-2. Run the rename script to clean up filenames:
+   Each subfolder = one bank name in TidalCycles. So `percussive/mykick/` = `sound "mykick"`.
+
+2. **Rename** (strips timestamps, lowercases, fixes spaces):
    ```bash
    ./scripts/rename-samples.sh
    ```
-3. Sync to the server:
+
+3. **Commit and push**:
    ```bash
-   rsync -avz samples/ root@204.168.163.80:/opt/eul/samples/
+   git add samples/ && git commit -m "add new samples" && git push
    ```
-4. SSH in and reload SuperDirt so it picks up the new files:
+
+4. **Sync to server + register bank + restart SuperDirt**:
    ```bash
-   ssh root@204.168.163.80
-   tmux attach -t eul
-   # go to window 2 (SuperCollider): Ctrl+b then 2
-   # press Ctrl+c to stop sclang, then restart it:
-   DISPLAY=:99 QTWEBENGINE_CHROMIUM_FLAGS='--no-sandbox' sclang -D -i none >/var/log/eul/superdirt.log 2>&1
+   ./scripts/add-samples.sh samples/path/to/yourfolder
+   # e.g: ./scripts/add-samples.sh samples/percussive/mykick
    ```
-5. Add the new bank to `config/superdirt_boot.scd`:
-   ```
-   ~dirt.loadSoundFiles("/opt/eul/samples/percussive/mykick");
-   ```
-   Then rsync the config too:
-   ```bash
-   rsync -avz config/superdirt_boot.scd root@204.168.163.80:/root/.config/SuperCollider/startup.scd
-   ```
+   This rsyncs the folder, adds it to the SuperDirt boot config, and restarts SuperCollider (~25s to reload).
+
+5. **Add the new bank to the evolve script** if you want it used in auto-evolution:
+   - For chord banks: add samples to `CHORD_SAMPLES` in `scripts/evolve.py`
+   - For drum banks: add to `DRUM_BANKS`
+   - For voice: add to `VOICE_SAMPLES`
+   Then rsync the updated script: `rsync -avz scripts/evolve.py root@204.168.163.80:/opt/eul/scripts/evolve.py`
 
 ---
 
-### Changing patterns (live, immediate)
+## Changing patterns (live, immediate)
 
-SSH into the server and send commands directly to the TidalCycles REPL:
+SSH in and type directly into the TidalCycles REPL:
 
 ```bash
 ssh root@204.168.163.80
 tmux attach -t eul
-# Ctrl+b then 5  →  TidalCycles REPL
+# Ctrl+b then 5  →  TidalCycles REPL (tidal> prompt)
 ```
 
-Type patterns at the `tidal>` prompt. They take effect on the next cycle (~1 second).
+Each line replaces one channel instantly on the next cycle. Everything else keeps playing.
 
 ```haskell
 -- Change a layer
@@ -78,51 +78,84 @@ d3 silence
 hush
 ```
 
-When you're happy with a pattern, copy it back into `patterns/main.tidal` on your Mac and commit.
+Save good patterns back to `patterns/main.tidal` and commit.
 
 ---
 
-### Updating patterns from the repo
+## Self-evolution (evolve.py)
 
-Edit `patterns/main.tidal` locally, commit, then paste the updated lines into the REPL:
+The engine evolves itself every 30 minutes via `scripts/evolve.py` running in tmux window 6.
 
+**What it randomises each session:**
+- Tempo range (always slow perlin drift, within 0.5–1.2 cps)
+- Drone filter range and sweep speed
+- Texture on/off timing
+- Drum bank (dungeondrums or rad), random slice selection
+- Chord samples (random subset from all melodic banks)
+- `whenmod` ratios — how long drums vs chords sections last
+- Whether voice appears (coin flip), which voice sample, how slow
+- Whether glitch fires at all
+
+**Rules it never breaks:**
+- Drone always on
+- Drums and chords never overlap
+- Voice only during chord sections
+- Max 3 layers active at once
+- No bitcrush on chords or drums
+
+**Trigger a manual evolution:**
 ```bash
-# On your Mac — edit and commit
-git add patterns/main.tidal && git commit -m "..." && git push
-
-# Then SSH in and paste the new lines into the tidal> prompt
 ssh root@204.168.163.80
-tmux attach -t eul
-# Ctrl+b 5, paste pattern lines
+python3 /opt/eul/scripts/evolve.py --once
 ```
 
-There's no auto-deploy of pattern changes — TidalCycles is a live coding environment, you're always typing directly into the REPL. The repo is just version control for patterns you want to keep.
+**Restart the evolve loop** (after server restart or crash):
+```bash
+ssh root@204.168.163.80
+tmux send-keys -t eul:6 'python3 -u /opt/eul/scripts/evolve.py 2>&1 | tee /var/log/eul/evolve.log' Enter
+```
 
 ---
 
-### Restarting everything
+## Scripts
 
-If the stream goes down or something crashes:
+| Script | Usage | What it does |
+|--------|-------|-------------|
+| `./scripts/rename-samples.sh` | After adding files | Strips timestamps, lowercases, fixes spaces |
+| `./scripts/add-samples.sh <folder>` | After rename + commit | Syncs folder, registers bank, restarts SuperDirt |
+| `./scripts/sync-patterns.sh` | After editing patterns | Pushes pattern file to server |
+| `./scripts/status.sh` | Anytime | Checks all processes, stream, JACK routing, loaded banks |
+
+---
+
+## Restarting everything
+
+If the stream goes down:
 
 ```bash
 ssh root@204.168.163.80
 bash /opt/eul/setup/start.sh
 # wait ~30 seconds for SuperDirt to boot
 tmux attach -t eul
-# Ctrl+b 5 — paste your patterns to resume
+# Ctrl+b 5 — TidalCycles REPL, run evolve.py --once to restore patterns
+python3 /opt/eul/scripts/evolve.py --once
+# Ctrl+b 6 — restart evolve loop
+python3 -u /opt/eul/scripts/evolve.py 2>&1 | tee /var/log/eul/evolve.log
 ```
 
 ---
 
-### Checking if the stream is up
+## Checking stream health
 
 ```bash
-curl -I http://204.168.163.80:8000/stream
-# HTTP/1.0 200 OK = live
-# connection refused = Icecast is down, restart
+./scripts/status.sh
 ```
 
-Or open `http://204.168.163.80:8000` in a browser — Icecast has a status page.
+Or manually:
+```bash
+curl -I http://204.168.163.80:8000/stream
+# 200 = live, anything else = Icecast down
+```
 
 ---
 
@@ -132,31 +165,35 @@ Or open `http://204.168.163.80:8000` in a browser — Icecast has a status page.
 - **Provider:** Hetzner CPX22 (~€8/mo)
 - **OS:** Ubuntu 24.04
 - **SSH:** `ssh root@204.168.163.80`
-- **Logs:** `/var/log/eul/` (jack, superdirt, icecast, darkice)
+- **Logs:** `/var/log/eul/` — jack, superdirt, icecast, darkice, evolve
 
 ## tmux windows
 
 | Window | What's running |
 |--------|---------------|
-| 0 | Xvfb (virtual display for sclang) |
-| 1 | JACK (virtual audio) |
+| 0 | Xvfb (virtual display for sclang Qt) |
+| 1 | JACK (virtual audio routing) |
 | 2 | SuperCollider + SuperDirt |
 | 3 | Icecast |
 | 4 | DarkIce |
-| 5 | TidalCycles REPL ← **this is where you work** |
+| 5 | **TidalCycles REPL ← work here** |
+| 6 | evolve.py (auto-composer) |
 
-Navigate between windows: `Ctrl+b` then the window number.
-Detach without stopping anything: `Ctrl+b d`.
+Navigate: `Ctrl+b` + window number. Detach without stopping: `Ctrl+b d`.
 
 ## Sample banks
 
-| Bank | Path | Notes |
-|------|------|-------|
-| `drone` | `samples/drone/` | Whitney Dark Choir |
-| `texture` | `samples/texture/` | disconeblip, droid11, droid14 |
-| `glitch1` | `samples/percussive/glitch1/` | 55 slices |
+| Bank | Path | Contents |
+|------|------|----------|
+| `drone` | `samples/drone/` | Whitney Dark Choir, cataamb2 |
+| `texture` | `samples/texture/` | disconeblip, droid11, droid14, catafx7, rain |
 | `dungeondrums` | `samples/percussive/dungeondrums/` | 14 slices |
+| `glitch1` | `samples/percussive/glitch1/` | 55 slices |
 | `rad` | `samples/percussive/rad/` | 37 slices |
 | `ls` | `samples/melodic/chords/ls/` | 9 chord WAVs |
 | `discoveryone` | `samples/melodic/chords/discoveryone/` | bridge pad |
-| `disconevoice` | `samples/melodic/singletone/discoveryone/` | voice sample |
+| `akatosh` | `samples/melodic/chords/akatosh/` | 2 chord WAVs |
+| `blackmirror` | `samples/melodic/chords/blackmirror/` | 1 sample |
+| `t99` | `samples/melodic/chords/t99/` | 1 sample |
+| `discoveryone` (voice) | `samples/melodic/singletone/discoveryone/` | disconevoice |
+| `akatosh` (voice) | `samples/melodic/singletone/akatosh/` | akatosh4 |
