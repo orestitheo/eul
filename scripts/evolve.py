@@ -159,6 +159,7 @@ def pick_drums_and_chords(mode):
         f' $ every {drum_every_fast} (fast 2)'
         f' $ sound "{drum_seq}"'
         f' # gain {drum_gain}'
+        f' # room 0'
         f' # speed (range 0.8 1.2 rand)'
         f' # pan (range 0.3 0.7 rand)'
         f'{delay_str}'
