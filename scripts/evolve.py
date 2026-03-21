@@ -243,7 +243,9 @@ def evolve():
     print("Done.")
 
 if __name__ == "__main__":
-    if "--once" in sys.argv:
+    if "--micro" in sys.argv:
+        micro_evolve()
+    elif "--once" in sys.argv:
         evolve()
     else:
         print(f"eul evolve: running every {INTERVAL_MINUTES} minutes, micro-evolve every 60s. Ctrl+C to stop.")
