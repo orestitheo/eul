@@ -2,35 +2,68 @@
 -- Available banks: drone, texture, dungeondrums, glitch1, rad, ls, discoveryone
 --
 -- TidalCycles syntax notes:
---   d1..d6   = pattern channels (play simultaneously)
---   $        = apply function to pattern (like a pipe)
---   #        = set a SuperDirt parameter (gain, room, speed, pan, lpf...)
---   slow N   = stretch pattern to N times longer
---   rand     = random 0-1 per event
---   perlin   = smoothly wandering 0-1 (good for slow filter sweeps)
---   choose   = pick randomly from a list each cycle
---   hush     = stop all patterns
+--   d1..d6        = pattern channels (play simultaneously)
+--   $             = apply function to pattern (like a pipe)
+--   #             = set a SuperDirt parameter (gain, room, speed, pan, lpf...)
+--   slow N        = stretch pattern to N times longer
+--   fast N        = compress pattern N times shorter
+--   rand          = random 0-1 per event
+--   perlin        = smoothly wandering 0-1 (good for slow filter sweeps)
+--   choose [...]  = pick randomly from a list each cycle
+--   every N f     = apply function f every N cycles
+--   sometimes f   = apply f ~50% of events
+--   rarely f      = apply f ~10% of events
+--   whenmod a b   = active for first b cycles of every a-cycle block
+--   jux f         = play f'd version in right channel, original in left
+--   cps N         = set tempo in cycles/sec (0.5=30bpm, 1.0=60bpm, 1.5=90bpm)
+--   hush          = stop all patterns
 
--- Drone: Whitney Dark Choir, slow filter sweep
+-- Tempo: wanders slowly between ~70 and ~130 bpm
+cps (slow 32 $ range 0.6 1.1 perlin)
+
+-- Drone: Whitney Dark Choir, slow filter sweep, always on
 d1 $ sound "drone:0"
    # gain 0.7
    # lpf (slow 16 $ range 300 2000 perlin)
    # room 0.9
 
--- Texture: field recordings / synth blips, random pitch
-d2 $ slow 2 $ sound "texture:0 texture:1 texture:2"
+-- Texture: field recordings / blips, random pitch, always on
+-- every 5 cycles: flips stereo sides
+d2 $ every 5 (jux rev)
+   $ slow 2 $ sound "texture:0 texture:1 texture:2"
    # gain 0.6
    # speed (rand + 0.5)
    # room 0.7
 
--- Glitch: percussive slices, random pitch and panning
-d3 $ sound "glitch1:0 glitch1:4 glitch1:12 glitch1:24"
+-- Glitch: percussive slices, always on
+-- sometimes: bitcrush, rarely: double speed
+d3 $ sometimes (# crush 4)
+   $ rarely (fast 2)
+   $ sound "glitch1:0 glitch1:4 glitch1:12 glitch1:24"
    # gain 0.6
    # speed (rand + 0.3)
    # pan rand
 
--- Drums: rad slices, 8 hits per cycle, slight random pitch and pan
-d4 $ sound "rad:0 rad:3 rad:7 rad:3 rad:0 rad:5 rad:2 rad:8"
+-- Drums: dungeon kit, plays for 8 cycles then silent for 4
+-- every 3 cycles: reverses, every 7: double time
+-- sometimes: bitcrush, random delay
+d4 $ whenmod 12 8 id
+   $ every 3 rev
+   $ every 7 (fast 2)
+   $ sometimes (# crush 6)
+   $ sound "dungeondrums:0 dungeondrums:3 dungeondrums:7 dungeondrums:3 dungeondrums:0 dungeondrums:5 dungeondrums:2 dungeondrums:8"
    # gain 0.9
    # speed (range 0.8 1.2 rand)
    # pan (range 0.3 0.7 rand)
+   # delay (sometimes (const 0.6) 0) # delaytime 0.25 # delayfeedback 0.3
+
+-- Melodic: ls chords + discoveryone pad, plays during drum-off window (4 cycles)
+-- wandering pitch via perlin, heavy delay, panning sine sweep
+d5 $ whenmod 12 4 id
+   $ every 3 (jux rev)
+   $ slow 2 $ sound "ls:0 ls:2 ls:4 ls:6 discoveryone:0 discoveryone:0"
+   # gain 0.65
+   # speed (range 0.5 1.5 perlin)
+   # delay 0.8 # delaytime (choose [0.25, 0.375, 0.75]) # delayfeedback 0.5
+   # room 0.9
+   # pan (slow 8 $ range 0.2 0.8 sine)
