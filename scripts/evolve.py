@@ -103,7 +103,7 @@ def pick_drums_and_chords(mode):
     Mode biases how long drums vs chords sections are.
     They never overlap.
     """
-    total = random.choice([8, 12, 16, 20])
+    total = random.choice([6, 8, 10, 12])
 
     if mode == "drums":
         drum_frac = random.uniform(0.65, 0.85)
@@ -147,7 +147,7 @@ def pick_drums_and_chords(mode):
     chord_picks = random.sample(CHORD_SAMPLES, num_chords)
     chord_list = ", ".join(f'"{c}"' for c in chord_picks)
     chord_slow = random.choice([2, 3])
-    chord_gain = round(random.uniform(2.0, 2.8) if mode == "chords" else random.uniform(1.8, 2.4), 1)
+    chord_gain = round(random.uniform(2.4, 3.2) if mode == "chords" else random.uniform(2.0, 2.8), 1)
     chord_room = round(random.uniform(0.6, 0.9), 1)
     chord_hpf = random.randint(150, 300)
     pan_slow = random.randint(4, 10)
