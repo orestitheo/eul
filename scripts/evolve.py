@@ -67,7 +67,7 @@ def pick_drone(mode):
     slow_factor = random.choice([8, 12, 16, 24])
     room = round(random.uniform(0.7, 1.0), 1)
     # Drone mode: louder and more present
-    gain = round(random.uniform(0.7, 1.0), 1) if mode == "drone" else round(random.uniform(0.4, 0.7), 1)
+    gain = round(random.uniform(0.8, 1.0), 1) if mode == "drone" else round(random.uniform(0.6, 0.8), 1)
     return (
         f'd1 $ sound "drone:0"'
         f' # gain {gain}'
@@ -79,12 +79,12 @@ def pick_texture(mode):
     on = random.choice([3, 4, 5, 6])
     total = on + random.choice([1, 2, 3])
     slow_factor = random.choice([2, 3])
-    gain = round(random.uniform(0.4, 0.7), 1)
+    gain = round(random.uniform(0.5, 0.7), 1)
     # Drone/glitch mode: texture more present
     if mode in ("drone", "glitch"):
         on = random.choice([4, 5, 6])
         total = on + random.choice([1, 2])
-        gain = round(random.uniform(0.5, 0.8), 1)
+        gain = round(random.uniform(0.6, 0.8), 1)
     return (
         f'd2 $ whenmod {total} {on} id'
         f' $ every {random.randint(4,7)} (jux rev)'
@@ -106,7 +106,7 @@ def pick_t99(mode, chord_on, total):
         "7 0 2 0",
     ])
     slow_factor = random.choice([3, 4, 6])
-    gain = round(random.uniform(0.6, 1.0), 1)
+    gain = round(random.uniform(0.7, 0.9), 1)
     loop_at = random.choice([2, 4, 4, 8])
     return (
         f'd3 $ whenmod {total} {chord_on} id'
@@ -146,7 +146,7 @@ def pick_drums_and_chords(mode):
     slices = [random.randint(0, max_slices - 1) for _ in range(8)]
     drum_seq = " ".join(f"{drum_bank}:{i}" for i in slices)
 
-    drum_gain = round(random.uniform(0.5, 0.7) if mode == "drums" else random.uniform(0.4, 0.6), 1)
+    drum_gain = round(random.uniform(0.7, 0.9) if mode == "drums" else random.uniform(0.6, 0.8), 1)
     drum_every_rev = random.randint(3, 6)
     drum_every_fast = random.randint(6, 10)
     dt = random.choice([0.25, 0.375, 0.5])
