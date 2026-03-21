@@ -171,8 +171,9 @@ def pick_drums_and_chords(mode):
         voice = (
             f'd5 $ whenmod {total} {chord_on} id'
             f' $ slow {voice_slow} $ sound "{voice_sample}"'
-            f' # gain {round(random.uniform(0.3, 0.5), 1)}'
+            f' # gain {round(random.uniform(0.5, 0.7), 1)}'
             f' # room {round(random.uniform(0.85, 1.0), 2)}'
+            f' # note -2'
             f' # delay 0.7 # delaytime {random.choice([0.375, 0.5, 0.75])} # delayfeedback 0.5'
             f' # pan (slow {random.randint(8,16)} $ range 0.2 0.8 sine)'
         )
