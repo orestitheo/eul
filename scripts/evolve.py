@@ -204,6 +204,26 @@ def pick_drums_and_chords(mode):
 
     return drums, chords, voice, chord_on, total
 
+def micro_evolve():
+    """Small tweaks every 60s — nudge gains and filter sweeps without restructuring."""
+    print("Micro-evolving...")
+    # Drone: just tweak gain and filter range
+    lpf_lo = random.randint(200, 500)
+    lpf_hi = random.randint(800, 2500)
+    slow_factor = random.choice([8, 12, 16, 24])
+    gain = round(random.uniform(0.4, 0.8), 1)
+    send(f'd1 $ sound "drone:0" # gain {gain} # lpf (slow {slow_factor} $ range {lpf_lo} {lpf_hi} perlin) # room {round(random.uniform(0.7, 1.0), 1)}')
+
+    # Texture: nudge gain and speed
+    gain = round(random.uniform(0.4, 0.7), 1)
+    send(f'd2 $ (# gain {gain}) $ (# speed (rand + {round(random.uniform(0.3, 0.8), 1)}))')
+
+    # Chords: nudge gain
+    chord_gain = round(random.uniform(2.0, 2.8), 1)
+    send(f'd6 $ (# gain {chord_gain})')
+
+    print("Micro-evolve done.")
+
 def evolve():
     mode = random.choice(MODES)
     print(f"Evolving patterns... [mode: {mode}]")
@@ -226,8 +246,13 @@ if __name__ == "__main__":
     if "--once" in sys.argv:
         evolve()
     else:
-        print(f"eul evolve: running every {INTERVAL_MINUTES} minutes. Ctrl+C to stop.")
-        evolve()  # run immediately on start
+        print(f"eul evolve: running every {INTERVAL_MINUTES} minutes, micro-evolve every 60s. Ctrl+C to stop.")
+        evolve()
+        last_full = time.time()
         while True:
-            time.sleep(INTERVAL_MINUTES * 60)
-            evolve()
+            time.sleep(60)
+            if time.time() - last_full >= INTERVAL_MINUTES * 60:
+                evolve()
+                last_full = time.time()
+            else:
+                micro_evolve()
