@@ -159,7 +159,7 @@ def pick_drums_and_chords(mode):
     chord_picks = random.sample(CHORD_SAMPLES, num_chords)
     chord_list = ", ".join(f'"{c}"' for c in chord_picks)
     chord_slow = random.choice([2, 3])
-    chord_gain = round(random.uniform(1.3, 1.8) if mode == "chords" else random.uniform(1.1, 1.6), 1)
+    chord_gain = round(random.uniform(1.6, 2.2) if mode == "chords" else random.uniform(1.4, 1.9), 1)
     chord_room = round(random.uniform(0.6, 0.9), 1)
     chord_hpf = random.randint(150, 300)
     pan_slow = random.randint(4, 10)
@@ -183,7 +183,7 @@ def pick_drums_and_chords(mode):
         voice = (
             f'd5 $ whenmod {total} {chord_on} id'
             f' $ slow {voice_slow} $ sound "{voice_sample}"'
-            f' # gain {round(random.uniform(0.6, 1.0), 1)}'
+            f' # gain {round(random.uniform(0.8, 1.2), 1)}'
             f' # room 0.95'
             f' # delay 0.7 # delaytime {random.choice([0.375, 0.5, 0.75])} # delayfeedback 0.5'
             f' # pan (slow {random.randint(8,16)} $ range 0.2 0.8 sine)'
