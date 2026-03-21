@@ -146,7 +146,10 @@ def pick_drums_and_chords(mode):
     slices = [random.randint(0, max_slices - 1) for _ in range(8)]
     drum_seq = " ".join(f"{drum_bank}:{i}" for i in slices)
 
-    drum_gain = round(random.uniform(0.7, 0.9) if mode == "drums" else random.uniform(0.6, 0.8), 1)
+    if drum_bank == "dungeondrums":
+        drum_gain = round(random.uniform(0.4, 0.55), 1)
+    else:
+        drum_gain = round(random.uniform(0.7, 0.9) if mode == "drums" else random.uniform(0.6, 0.8), 1)
     drum_every_rev = random.randint(3, 6)
     drum_every_fast = random.randint(6, 10)
     dt = random.choice([0.25, 0.375, 0.5])
@@ -159,6 +162,7 @@ def pick_drums_and_chords(mode):
         f' $ every {drum_every_fast} (fast 2)'
         f' $ sound "{drum_seq}"'
         f' # gain {drum_gain}'
+        f' # legato 1'
         f' # room 0'
         f' # speed (range 0.8 1.2 rand)'
         f' # pan (range 0.3 0.7 rand)'
