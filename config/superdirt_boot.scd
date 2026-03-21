@@ -14,7 +14,6 @@ s.waitForBoot {
     ~dirt.loadSoundFiles("/opt/eul/samples/drone");
     ~dirt.loadSoundFiles("/opt/eul/samples/texture");
     ~dirt.loadSoundFiles("/opt/eul/samples/percussive/dungeondrums");
-    ~dirt.loadSoundFiles("/opt/eul/samples/percussive/glitch1");
     ~dirt.loadSoundFiles("/opt/eul/samples/percussive/rad");
     ~dirt.loadSoundFiles("/opt/eul/samples/melodic/chords/ls");
     ~dirt.loadSoundFiles("/opt/eul/samples/melodic/chords/discoveryone");
