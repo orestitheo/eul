@@ -1,0 +1,37 @@
+<icecast>
+  <location>Malmo</location>
+  <admin>oresti.theodoridis@gmail.com</admin>
+  <limits>
+    <clients>100</clients>
+    <sources>1</sources>
+  </limits>
+  <authentication>
+    <source-password>eulstream</source-password>
+    <relay-password>eulrelay</relay-password>
+    <admin-user>admin</admin-user>
+    <admin-password>euladmin</admin-password>
+  </authentication>
+  <hostname>204.168.163.80</hostname>
+  <listen-socket>
+    <port>8000</port>
+  </listen-socket>
+  <fileserve>1</fileserve>
+  <paths>
+    <basedir>/usr/share/icecast2</basedir>
+    <logdir>/var/log/icecast2</logdir>
+    <webroot>/usr/share/icecast2/web</webroot>
+    <adminroot>/usr/share/icecast2/admin</adminroot>
+  </paths>
+  <logging>
+    <accesslog>access.log</accesslog>
+    <errorlog>error.log</errorlog>
+    <loglevel>3</loglevel>
+  </logging>
+  <security>
+    <chroot>0</chroot>
+    <changeowner>
+      <user>nobody</user>
+      <group>nogroup</group>
+    </changeowner>
+  </security>
+</icecast>

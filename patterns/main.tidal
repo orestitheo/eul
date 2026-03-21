@@ -1,0 +1,30 @@
+-- eul — main generative pattern
+-- Available banks: drone, texture, dungeondrums, glitch1, rad, ls, discoveryone
+--
+-- TidalCycles syntax notes:
+--   d1..d6   = pattern channels (play simultaneously)
+--   $        = apply function to pattern (like a pipe)
+--   #        = set a SuperDirt parameter (gain, room, speed, pan, lpf...)
+--   slow N   = stretch pattern to N times longer
+--   rand     = random 0-1 per event
+--   perlin   = smoothly wandering 0-1 (good for slow filter sweeps)
+--   choose   = pick randomly from a list each cycle
+--   hush     = stop all patterns
+
+-- Drone: Whitney Dark Choir, slow filter sweep
+d1 $ sound "drone:0"
+   # gain 0.7
+   # lpf (slow 16 $ range 300 2000 perlin)
+   # room 0.9
+
+-- Texture: field recordings / synth blips, random pitch
+d2 $ slow 2 $ sound "texture:0 texture:1 texture:2"
+   # gain 0.6
+   # speed (rand + 0.5)
+   # room 0.7
+
+-- Glitch: percussive slices, random pitch and panning
+d3 $ sound "glitch1:0 glitch1:4 glitch1:12 glitch1:24"
+   # gain 0.6
+   # speed (rand + 0.3)
+   # pan rand
