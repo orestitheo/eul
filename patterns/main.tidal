@@ -28,3 +28,9 @@ d3 $ sound "glitch1:0 glitch1:4 glitch1:12 glitch1:24"
    # gain 0.6
    # speed (rand + 0.3)
    # pan rand
+
+-- Drums: rad slices, 8 hits per cycle, slight random pitch and pan
+d4 $ sound "rad:0 rad:3 rad:7 rad:3 rad:0 rad:5 rad:2 rad:8"
+   # gain 0.9
+   # speed (range 0.8 1.2 rand)
+   # pan (range 0.3 0.7 rand)
