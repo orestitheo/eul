@@ -84,7 +84,7 @@ Save good patterns back to `patterns/main.tidal` and commit.
 
 ## Self-evolution (evolve.py)
 
-The engine evolves itself every 30 minutes via `scripts/evolve.py` running in tmux window 6.
+The engine evolves itself via `scripts/evolve.py` running in tmux window 6. Full evolution every 6 minutes (new mode, new samples, new patterns). Micro-evolution every 60 seconds (nudges gains, filter sweeps, speeds).
 
 **What it randomises each session:**
 - Tempo range (always slow perlin drift, within 0.5–1.2 cps)
@@ -105,8 +105,8 @@ The engine evolves itself every 30 minutes via `scripts/evolve.py` running in tm
 
 **Trigger a manual evolution:**
 ```bash
-ssh root@204.168.163.80
-python3 /opt/eul/scripts/evolve.py --once
+ssh root@204.168.163.80 "python3 /opt/eul/scripts/evolve.py --once"   # full evolve
+ssh root@204.168.163.80 "python3 /opt/eul/scripts/evolve.py --micro"  # micro evolve
 ```
 
 **Restart the evolve loop** (after server restart or crash):
@@ -183,17 +183,19 @@ Navigate: `Ctrl+b` + window number. Detach without stopping: `Ctrl+b d`.
 
 ## Sample banks
 
-| Bank | Path | Contents |
-|------|------|----------|
-| `drone` | `samples/drone/` | Whitney Dark Choir, cataamb2 |
-| `texture` | `samples/texture/` | disconeblip, droid11, droid14, catafx7, rain |
-| `dungeondrums` | `samples/percussive/dungeondrums/` | 14 slices |
-| `glitch1` | `samples/percussive/glitch1/` | 55 slices |
-| `rad` | `samples/percussive/rad/` | 37 slices |
-| `ls` | `samples/melodic/chords/ls/` | 9 chord WAVs |
-| `discoveryone` | `samples/melodic/chords/discoveryone/` | bridge pad |
-| `akatosh` | `samples/melodic/chords/akatosh/` | 2 chord WAVs |
-| `blackmirror` | `samples/melodic/chords/blackmirror/` | 1 sample |
-| `t99` | `samples/melodic/chords/t99/` | 1 sample |
-| `discoveryone` (voice) | `samples/melodic/singletone/discoveryone/` | disconevoice |
-| `akatosh` (voice) | `samples/melodic/singletone/akatosh/` | akatosh4 |
+| Bank | Path | Contents | Used as |
+|------|------|----------|---------|
+| `drone` | `samples/drone/` | Whitney Dark Choir, cataamb2 | d1 — always on |
+| `texture` | `samples/texture/` | disconeblip, droid11, droid14, catafx7, rain | d2 — cycles in/out |
+| `t99` | `samples/melodic/chords/t99/` | 1 sample | d3 — looped ambient layer, seconds+fifths |
+| `dungeondrums` | `samples/percussive/dungeondrums/` | 14 slices | d4 — drums |
+| `rad` | `samples/percussive/rad/` | 37 slices | d4 — drums |
+| `shxc1` | `samples/percussive/shxc1/` | 15 slices | d4 — drums |
+| `discoveryone` (voice) | `samples/melodic/singletone/discoveryone/` | 1 sample | d5 — voice |
+| `akatosh` (voice) | `samples/melodic/singletone/akatosh/` | 1 sample | d5 — voice |
+| `madonna` | `samples/melodic/singletone/madonna/` | Frozen acapella | d5 — voice |
+| `ls` | `samples/melodic/chords/ls/` | 9 chord WAVs | d6 — chords |
+| `discoveryone` | `samples/melodic/chords/discoveryone/` | bridge pad | d6 — chords |
+| `akatosh` | `samples/melodic/chords/akatosh/` | 2 chord WAVs | d6 — chords |
+| `blackmirror` | `samples/melodic/chords/blackmirror/` | 1 sample | d6 — chords |
+| `shxc` | `samples/melodic/chords/shxc/` | 1 sample | d6 — chords |
