@@ -107,9 +107,11 @@ def pick_t99(mode, chord_on, total):
     ])
     slow_factor = random.choice([3, 4, 6])
     gain = round(random.uniform(0.6, 1.0), 1)
+    loop_at = random.choice([2, 4, 4, 8])
     return (
         f'd3 $ whenmod {total} {chord_on} id'
         f' $ slow {slow_factor} $ sound "t99:0"'
+        f' # loopAt {loop_at}'
         f' # note "{notes}"'
         f' # gain {gain}'
         f' # room {round(random.uniform(0.7, 0.95), 2)}'
