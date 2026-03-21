@@ -33,7 +33,7 @@ CHORD_SAMPLES = (
     [f"ls:{i}" for i in range(9)] +
     [f"akatosh:{i}" for i in range(2)] +
     [f"shxc:{i}" for i in range(1)] +
-    ["blackmirror:0", "t99:0", "discoveryone:0"]
+    ["blackmirror:0", "discoveryone:0"]
 )
 VOICE_SAMPLES = ["madonna:0", "discoveryone:0", "akatosh:0"]
 
@@ -94,8 +94,28 @@ def pick_texture(mode):
         f' # room {round(random.uniform(0.5, 0.9), 1)}'
     )
 
-def pick_glitch(mode):
-    return "d3 silence"
+def pick_t99(mode, chord_on, total):
+    # Coin flip — more likely in chords/drone mode
+    if mode not in ("chords", "drone", "balanced") and random.random() < 0.5:
+        return "d3 silence"
+    # Play seconds and fifths: notes 0, 2, 7 in a slow sequence
+    notes = random.choice([
+        "0 2 7 2",
+        "0 7 2 7",
+        "0 2 0 7",
+        "7 0 2 0",
+    ])
+    slow_factor = random.choice([3, 4, 6])
+    gain = round(random.uniform(0.6, 1.0), 1)
+    return (
+        f'd3 $ whenmod {total} {chord_on} id'
+        f' $ slow {slow_factor} $ sound "t99:0"'
+        f' # note "{notes}"'
+        f' # gain {gain}'
+        f' # room {round(random.uniform(0.7, 0.95), 2)}'
+        f' # delay 0.5 # delaytime {random.choice([0.375, 0.5])} # delayfeedback 0.4'
+        f' # pan (slow {random.randint(6,12)} $ range 0.2 0.8 sine)'
+    )
 
 def pick_drums_and_chords(mode):
     """
@@ -179,18 +199,18 @@ def pick_drums_and_chords(mode):
     else:
         voice = "d5 silence"
 
-    return drums, chords, voice
+    return drums, chords, voice, chord_on, total
 
 def evolve():
     mode = random.choice(MODES)
     print(f"Evolving patterns... [mode: {mode}]")
+    drums, chords, voice, chord_on, total = pick_drums_and_chords(mode)
     lines = [
         pick_tempo(mode),
         pick_drone(mode),
         pick_texture(mode),
-        pick_glitch(mode),
+        pick_t99(mode, chord_on, total),
     ]
-    drums, chords, voice = pick_drums_and_chords(mode)
     lines += [drums, chords, voice]
 
     for line in lines:
