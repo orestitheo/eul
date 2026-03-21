@@ -52,6 +52,20 @@ ssh "$SERVER" "grep -qF '$REMOTE_SAMPLES/$FOLDER' $BOOT_FILE || sed -i 's|~dirt.
 
 echo "==> Restarting SuperCollider (SuperDirt will reload in ~25s)"
 ssh "$SERVER" "tmux send-keys -t eul:2 C-c '' && sleep 1 && tmux send-keys -t eul:2 \"DISPLAY=:99 QTWEBENGINE_CHROMIUM_FLAGS='--no-sandbox' sclang -D -i none >/var/log/eul/superdirt.log 2>&1\" Enter"
+echo "  Waiting 30s for SuperDirt to boot..."
+sleep 30
+
+echo "==> Reconnecting JACK routing"
+ssh "$SERVER" "
+  DARKICE_LEFT=\$(jack_lsp | grep 'darkice.*left')
+  DARKICE_RIGHT=\$(jack_lsp | grep 'darkice.*right')
+  jack_connect SuperCollider:out_1 \"\$DARKICE_LEFT\" 2>/dev/null || true
+  jack_connect SuperCollider:out_2 \"\$DARKICE_RIGHT\" 2>/dev/null || true
+  echo \"  Connected: \$DARKICE_LEFT / \$DARKICE_RIGHT\"
+"
+
+echo "==> Restoring patterns"
+ssh "$SERVER" "python3 /opt/eul/scripts/evolve.py --once"
 
 echo "==> Updating evolve.py"
 python3 - "$EVOLVE" "$FOLDER" "$BANK_NAME" "$COUNT" <<'PYEOF'
