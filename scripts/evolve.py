@@ -25,8 +25,13 @@ TMUX_WINDOW = "5"
 INTERVAL_MINUTES = 30  # how often to evolve
 
 DRUM_BANKS = ["dungeondrums", "rad"]
-CHORD_SAMPLES = [f"ls:{i}" for i in range(9)]
+CHORD_SAMPLES = (
+    [f"ls:{i}" for i in range(9)] +
+    [f"akatosh:{i}" for i in range(2)] +
+    ["blackmirror:0", "t99:0", "discoveryone:0"]
+)
 VOICE_SAMPLE = "discoveryone:0"  # the voice file
+VOICE_SAMPLES = ["discoveryone:0", "akatosh:0"]  # all voice-like samples
 
 def send(line):
     """Send a line to the TidalCycles REPL."""
@@ -146,9 +151,10 @@ def pick_drums_and_chords():
     # Voice — only during chord window, coin flip
     if random.random() < 0.5:
         voice_slow = random.choice([4, 6, 8])
+        voice_sample = random.choice(VOICE_SAMPLES)
         voice = (
             f'd5 $ whenmod {total} {chord_on} id'
-            f' $ slow {voice_slow} $ sound "{VOICE_SAMPLE}"'
+            f' $ slow {voice_slow} $ sound "{voice_sample}"'
             f' # gain {round(random.uniform(0.5, 0.9), 1)}'
             f' # room 0.95'
             f' # delay 0.7 # delaytime {random.choice([0.375, 0.5, 0.75])} # delayfeedback 0.5'

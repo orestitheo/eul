@@ -18,7 +18,11 @@ s.waitForBoot {
     ~dirt.loadSoundFiles("/opt/eul/samples/percussive/rad");
     ~dirt.loadSoundFiles("/opt/eul/samples/melodic/chords/ls");
     ~dirt.loadSoundFiles("/opt/eul/samples/melodic/chords/discoveryone");
+    ~dirt.loadSoundFiles("/opt/eul/samples/melodic/chords/akatosh");
+    ~dirt.loadSoundFiles("/opt/eul/samples/melodic/chords/blackmirror");
+    ~dirt.loadSoundFiles("/opt/eul/samples/melodic/chords/t99");
     ~dirt.loadSoundFiles("/opt/eul/samples/melodic/singletone/discoveryone");
+    ~dirt.loadSoundFiles("/opt/eul/samples/melodic/singletone/akatosh");
     ~dirt.start(57120, [0, 0]);
     "SuperDirt ready".postln;
 };
