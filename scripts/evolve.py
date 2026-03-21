@@ -22,7 +22,7 @@ import sys
 
 TMUX_SESSION = "eul"
 TMUX_WINDOW = "5"
-INTERVAL_MINUTES = 10  # how often to evolve
+INTERVAL_MINUTES = 6  # how often to evolve
 
 DRUM_BANKS = {
     "dungeondrums": 14,
