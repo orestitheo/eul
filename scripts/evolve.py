@@ -95,20 +95,7 @@ def pick_texture(mode):
     )
 
 def pick_glitch(mode):
-    # Glitch mode: always on. Others: coin flip
-    if mode != "glitch" and random.random() < 0.4:
-        return "d3 silence"
-    slices = random.sample(range(55), 4)
-    slices_str = " ".join(f"glitch1:{i}" for i in sorted(slices))
-    freq = "sometimes" if mode == "glitch" else random.choice(["rarely", "sometimes"])
-    gain = round(random.uniform(0.5, 0.8) if mode == "glitch" else random.uniform(0.4, 0.7), 1)
-    return (
-        f'd3 $ {freq} id'
-        f' $ sound "{slices_str}"'
-        f' # gain {gain}'
-        f' # speed (rand + {round(random.uniform(0.2, 0.5), 1)})'
-        f' # pan rand'
-    )
+    return "d3 silence"
 
 def pick_drums_and_chords(mode):
     """
