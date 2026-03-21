@@ -34,7 +34,7 @@ CHORD_SAMPLES = (
     [f"akatosh:{i}" for i in range(2)] +
     ["blackmirror:0", "t99:0", "discoveryone:0"]
 )
-VOICE_SAMPLES = ["discoveryone:0", "akatosh:0"]
+VOICE_SAMPLES = ["madonna:0", "discoveryone:0", "akatosh:0"]
 
 # Modes bias which layers are prominent this session
 MODES = ["drums", "chords", "drone", "glitch", "balanced"]
