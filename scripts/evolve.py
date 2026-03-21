@@ -32,6 +32,7 @@ DRUM_BANKS = {
 CHORD_SAMPLES = (
     [f"ls:{i}" for i in range(9)] +
     [f"akatosh:{i}" for i in range(2)] +
+    [f"shxc:{i}" for i in range(1)] +
     ["blackmirror:0", "t99:0", "discoveryone:0"]
 )
 VOICE_SAMPLES = ["madonna:0", "discoveryone:0", "akatosh:0"]
