@@ -151,21 +151,16 @@ def pick_drums_and_chords(mode):
     drum_every_fast = random.randint(6, 10)
     dt = random.choice([0.25, 0.375, 0.5])
     delay_str = f' # delay (sometimes (const 0.5) 0) # delaytime (slow 3 $ range {dt} {round(dt*1.5, 3)} sine) # delayfeedback 0.35 # pan (slow 5 $ range 0.1 0.9 sine)'
-    flanger_str = ' # shape 0.4 # coarse (sometimes (const 2) 1)' if random.random() < 0.3 else ""
-
     drums = (
         f'd4 $ whenmod {total} {drum_on} id'
         f' $ every {drum_every_rev} rev'
         f' $ every {drum_every_fast} (fast 2)'
         f' $ sound "{drum_seq}"'
         f' # gain {drum_gain}'
-        f' # attack 0.001'
-        f' # release 0.003'
         f' # room 0'
         f' # speed (range 0.8 1.2 rand)'
         f' # pan (range 0.3 0.7 rand)'
         f'{delay_str}'
-        f'{flanger_str}'
     )
 
     num_chords = random.randint(3, 6)
@@ -177,10 +172,13 @@ def pick_drums_and_chords(mode):
     chord_hpf = random.randint(150, 300)
     pan_slow = random.randint(4, 10)
 
+    loop_at = random.choice([2, 4, 4, 8])
     chords = (
         f'd6 $ whenmod {total} {chord_on} id'
         f' $ every {random.randint(3,6)} (jux rev)'
         f' $ slow {chord_slow} $ sound (choose [{chord_list}])'
+        f' # loopAt {loop_at}'
+        f' # legato 1'
         f' # gain {chord_gain}'
         f' # hpf {chord_hpf}'
         f' # room {chord_room}'
