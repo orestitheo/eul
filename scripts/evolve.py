@@ -24,7 +24,11 @@ TMUX_SESSION = "eul"
 TMUX_WINDOW = "5"
 INTERVAL_MINUTES = 30  # how often to evolve
 
-DRUM_BANKS = ["dungeondrums", "rad"]
+DRUM_BANKS = {
+    "dungeondrums": 14,
+    "rad": 37,
+    "shxc1": 15,
+}
 CHORD_SAMPLES = (
     [f"ls:{i}" for i in range(9)] +
     [f"akatosh:{i}" for i in range(2)] +
@@ -102,9 +106,9 @@ def pick_drums_and_chords():
     drum_on = int(total * random.uniform(0.5, 0.75))
     chord_on = total - drum_on
 
-    drum_bank = random.choice(DRUM_BANKS)
+    drum_bank = random.choice(list(DRUM_BANKS.keys()))
     # Pick 8 random slices from the drum bank
-    max_slices = 14 if drum_bank == "dungeondrums" else 37
+    max_slices = DRUM_BANKS[drum_bank]
     slices = [random.randint(0, max_slices - 1) for _ in range(8)]
     drum_seq = " ".join(f"{drum_bank}:{i}" for i in slices)
 
