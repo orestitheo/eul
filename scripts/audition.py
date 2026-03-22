@@ -3,29 +3,29 @@
 audition.py — plays each sample bank one at a time so you can set good gain levels.
 
 Usage:
-  python3 /opt/eul/scripts/audition.py
+  ssh -t root@204.168.163.80 "python3 /opt/eul/scripts/audition.py"
 
-For each bank it plays a short pattern, waits for you to press Enter,
-then moves to the next. At the end it prints a gain table you can paste
-into evolve.py.
+For each bank, type a number to set gain and advance, or +/- to nudge.
+Evolve loop is paused while running and restored on exit.
 
 Controls:
-  Enter       → next bank (keep current gain)
-  +           → louder  (+0.1)
-  -           → quieter (-0.1)
-  number      → set gain directly (e.g. 1.4)
+  1.4         → set gain to 1.4 and advance to next bank
+  +           → louder (+0.1), replays
+  -           → quieter (-0.1), replays
+  Enter       → keep current gain and advance
   q           → quit
 """
 
 import subprocess
 import time
 import sys
+import signal
 
 TMUX_SESSION = "eul"
 TMUX_WINDOW = "5"
+EVOLVE_WINDOW = "6"
 
 BANKS = [
-    # (name, type, max_slices_or_none)
     ("dungeondrums", "drums",   14),
     ("rad",          "drums",   37),
     ("shxc1",        "drums",   15),
@@ -49,6 +49,18 @@ def send(line):
     ])
     time.sleep(0.3)
 
+def pause_evolve():
+    subprocess.run(["tmux", "send-keys", "-t", f"{TMUX_SESSION}:{EVOLVE_WINDOW}", "C-c", ""])
+    time.sleep(0.5)
+    print("  (evolve loop paused)")
+
+def resume_evolve():
+    subprocess.run([
+        "tmux", "send-keys", "-t", f"{TMUX_SESSION}:{EVOLVE_WINDOW}",
+        "python3 -u /opt/eul/scripts/evolve.py 2>&1 | tee /var/log/eul/evolve.log", "Enter"
+    ])
+    print("  (evolve loop resumed)")
+
 def play(bank, kind, slices, gain):
     if kind == "drums":
         seq = " ".join(f"{bank}:{i}" for i in range(min(8, slices)))
@@ -63,49 +75,59 @@ def play(bank, kind, slices, gain):
     elif kind == "chords":
         send(f'd1 $ slow 3 $ sound "{bank}:0" # loopAt 4 # legato 1 # gain {gain} # room 0.7')
     elif kind == "voice":
-        folder = "singletone" if bank in ("discoveryone", "akatosh", "madonna") else "chords"
         send(f'd1 $ slow 6 $ sound "{bank}:0" # gain {gain} # room 0.9 # note -2')
+
+def cleanup(results):
+    send("d1 silence")
+    resume_evolve()
+    if results:
+        print("\n=== Gain table ===")
+        for label, gain in results.items():
+            print(f"  {label}: {gain}")
 
 def main():
     results = {}
-    print("\neul audition — press Enter to advance, +/- to adjust, number to set gain, q to quit\n")
+
+    pause_evolve()
+
+    def on_exit(sig, frame):
+        cleanup(results)
+        sys.exit(0)
+    signal.signal(signal.SIGINT, on_exit)
+
+    print("\neul audition — type a number to set gain + advance, +/- to nudge, Enter to keep, q to quit\n")
 
     for bank, kind, slices in BANKS:
         gain = 1.0
         label = f"{bank} ({kind})"
 
-        print(f"\n▶  {label}  — gain: {gain}")
+        print(f"\n▶  {label}")
         play(bank, kind, slices, gain)
 
         while True:
-            raw = input(f"   [{label}] gain={gain}  (+/-/number/Enter/q): ").strip()
+            raw = input(f"   gain={gain}: ").strip()
+
             if raw == "q":
-                send("d1 silence")
-                print("\nResults so far:")
-                for k, v in results.items():
-                    print(f"  {k}: {v}")
+                cleanup(results)
                 sys.exit(0)
             elif raw == "+":
                 gain = round(gain + 0.1, 1)
+                play(bank, kind, slices, gain)
             elif raw == "-":
                 gain = round(max(0.1, gain - 0.1), 1)
+                play(bank, kind, slices, gain)
             elif raw == "":
                 results[label] = gain
                 break
             else:
                 try:
                     gain = round(float(raw), 1)
+                    results[label] = gain
+                    break
                 except ValueError:
-                    pass
+                    print("   type a number, +, -, or Enter")
 
-            print(f"   → gain: {gain}")
-            play(bank, kind, slices, gain)
-
-    send("d1 silence")
-    print("\n\n=== Final gain table ===")
-    print("Paste these into evolve.py:\n")
-    for label, gain in results.items():
-        print(f"  {label}: {gain}")
+    cleanup(results)
 
 if __name__ == "__main__":
     main()
