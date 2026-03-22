@@ -312,12 +312,31 @@ def _micro_nudge(genomes: dict, events: EventManager):
     lpf_hi = drn.map("lpf_hi", 600, 3000, integer=True)
     slow_f = drn.map("lpf_speed", 8, 24, integer=True)
     gain   = drn.map("gain", 0.4, 1.0)
-    send(f'd1 $ (# gain {gain}) $ (# lpf (slow {slow_f} $ range {lpf_lo} {lpf_hi} perlin))')
+    # Drone: resend with updated filter + gain
+    send(
+        f'd1 $ sound "drone:{random.randint(0,2)}"'
+        f' # begin {drn.map("begin", 0.0, 0.6)}'
+        f' # gain {gain}'
+        f' # lpf (slow {slow_f} $ range {lpf_lo} {lpf_hi} perlin)'
+        f' # room {drn.map("room", 0.5, 1.0)}'
+    )
 
-    t_gain = tex.map("gain", 0.3, 0.9)
-    t_spd  = tex.map("speed_rand", 0.1, 1.0)
-    send(f'd2 $ (# gain {t_gain}) $ (# speed (slow 8 $ range {round(1.0 - t_spd * 0.5, 2)} {round(1.0 + t_spd * 0.5, 2)} perlin))')
+    # Texture: resend with updated gain + speed
+    t_gain   = tex.map("gain", 0.3, 0.9)
+    t_spd    = tex.map("speed_rand", 0.1, 1.0)
+    density  = tex.get("density")
+    on       = max(2, round(density * 7))
+    total    = on + 2
+    slow_f_t = tex.map("slow", 1, 4, integer=True)
+    send(
+        f'd2 $ whenmod {total} {on} id'
+        f' $ slow {slow_f_t} $ sound "texture:{random.randint(0,4)}"'
+        f' # gain {t_gain}'
+        f' # speed (slow 8 $ range {round(1.0 - t_spd * 0.5, 2)} {round(1.0 + t_spd * 0.5, 2)} perlin)'
+        f' # room {tex.map("room", 0.0, 1.0)}'
+    )
 
+    # Drums: new rhythm sequence within current bank position
     from banks import DRUM_BANKS, BANKS
     bank_pos   = perc.get("bank_pos") * (len(DRUM_BANKS) - 1)
     bank       = DRUM_BANKS[int(bank_pos)]
@@ -327,12 +346,13 @@ def _micro_nudge(genomes: dict, events: EventManager):
     drum_spd   = perc.get("speed")
     steps      = random.choice([6, 8, 8, 10])
     seq        = P._drum_seq(bank, steps, max_slices, rest_prob, slice_bias)
-    speed_str  = "$ slow 2 " if drum_spd < 0.33 else ("$ fast 2 " if drum_spd > 0.66 else "")
+    speed_str  = "slow 2 $ " if drum_spd < 0.33 else ("fast 2 $ " if drum_spd > 0.66 else "")
     d_gain     = round(random.uniform(0.8, 0.9), 1)
-    send(f'd4 $ (# gain {d_gain}) # room 0 {speed_str}$ sound "{seq}"')
+    total_d    = perc.map("cycle_len", 6, 12, integer=True)
+    drum_on    = max(2, round(total_d * perc.get("window_frac")))
+    send(f'd4 $ whenmod {total_d} {drum_on} id $ {speed_str}sound "{seq}" # gain {d_gain} # room 0')
 
-    c_gain = mel.map("chord_gain", 0.4, 1.0)
-    send(f'd6 $ (# gain {c_gain})')
+    # Chords + voice: leave untouched between full rebuilds (long samples play through)
 
 
 # ── Entry point ────────────────────────────────────────────────────────────────
