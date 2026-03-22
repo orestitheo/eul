@@ -1,30 +1,19 @@
 #!/usr/bin/env python3
 """
 eul audition — interactive mixer to find good gain levels.
-
-Commands:
-  list              show all available banks
-  play <bank>       add/replace a bank in the mix (auto-detects type)
-  stop <bank>       remove a bank from the mix
-  stop all          clear everything
-  gain <bank> <n>   set gain for a bank (e.g. gain ls 2.4)
-  +  /  -           louder / quieter for last touched bank
-  r                 replay all active layers
-  status            show what's currently playing
-  report            print final gain table
-  q                 quit
+Uses curses for a persistent status bar at the bottom.
 """
 
 import subprocess
 import time
 import sys
 import signal
+import curses
 
 TMUX_SESSION = "eul"
 TMUX_WINDOW = "5"
 EVOLVE_WINDOW = "6"
 
-# All banks with their type and slice count
 ALL_BANKS = {
     "dungeondrums": ("drums",   14),
     "rad":          ("drums",   37),
@@ -40,7 +29,6 @@ ALL_BANKS = {
     "madonna":      ("voice",   1),
 }
 
-# Which TidalCycles channel each bank type uses
 TYPE_CHANNEL = {
     "drums":   "d4",
     "pad":     "d1",
@@ -49,9 +37,9 @@ TYPE_CHANNEL = {
     "voice":   "d5",
 }
 
-# Active layers: bank -> {gain, channel, kind}
 active = {}
 last_touched = None
+log_lines = []
 
 def send(line):
     subprocess.run([
@@ -63,14 +51,12 @@ def send(line):
 def pause_evolve():
     subprocess.run(["tmux", "send-keys", "-t", f"{TMUX_SESSION}:{EVOLVE_WINDOW}", "C-c", ""])
     time.sleep(0.5)
-    print("  [evolve paused]")
 
 def resume_evolve():
     subprocess.run([
         "tmux", "send-keys", "-t", f"{TMUX_SESSION}:{EVOLVE_WINDOW}",
         "python3 -u /opt/eul/scripts/evolve.py 2>&1 | tee /var/log/eul/evolve.log", "Enter"
     ])
-    print("  [evolve resumed]")
 
 def build_pattern(bank, kind, slices, gain):
     if kind == "drums":
@@ -93,169 +79,208 @@ def play_bank(bank, kind, slices, gain):
     pat = build_pattern(bank, kind, slices, gain)
     send(f"{ch} {pat}")
 
-def stop_channel(ch):
-    send(f"{ch} silence")
-
-def replay_all():
-    if not active:
-        print("  nothing playing")
-        return
-    for bank, info in active.items():
-        kind, slices = ALL_BANKS[bank]
-        play_bank(bank, kind, slices, info["gain"])
-
-def print_status():
-    if not active:
-        print("  [nothing playing]")
-        return
-    print("  Active layers:")
-    for bank, info in active.items():
-        bar = "█" * max(0, round(info["gain"] * 5))
-        marker = " ◀" if bank == last_touched else ""
-        print(f"    {info['ch']}  {bank:<16} gain={info['gain']:.1f}  {bar:<20}{marker}")
-
-def print_report():
-    if not active:
-        print("  no data yet")
-        return
-    print("\n" + "="*45)
-    print("  Final gain table")
-    print("="*45)
-    for bank, info in active.items():
-        print(f"  {bank:<16} ({info['kind']:<8})  gain = {info['gain']:.1f}")
-    print("="*45)
-
-def print_banks():
-    print("\n  Available banks:")
-    for bank, (kind, slices) in ALL_BANKS.items():
-        status = "  ▶ playing" if bank in active else ""
-        print(f"    {bank:<16} ({kind}){status}")
-
 def cmd_play(bank):
     global last_touched
     if bank not in ALL_BANKS:
-        print(f"  unknown bank '{bank}' — type 'list' to see all")
-        return
+        return f"unknown bank '{bank}'"
     kind, slices = ALL_BANKS[bank]
     ch = TYPE_CHANNEL[kind]
     gain = active[bank]["gain"] if bank in active else 1.0
     active[bank] = {"gain": gain, "ch": ch, "kind": kind}
     last_touched = bank
     play_bank(bank, kind, slices, gain)
-    print(f"  playing {bank} on {ch}  gain={gain:.1f}")
+    return f"playing {bank} on {ch}  gain={gain:.1f}"
 
 def cmd_stop(bank):
     if bank == "all":
         send("hush")
         active.clear()
-        print("  stopped all")
-        return
+        return "stopped all"
     if bank not in active:
-        print(f"  {bank} is not playing")
-        return
-    stop_channel(active[bank]["ch"])
+        return f"{bank} is not playing"
+    send(f"{active[bank]['ch']} silence")
     del active[bank]
-    print(f"  stopped {bank}")
+    return f"stopped {bank}"
 
 def cmd_gain(bank, val):
     global last_touched
     if bank not in ALL_BANKS:
-        print(f"  unknown bank '{bank}'")
-        return
+        return f"unknown bank '{bank}'"
     try:
         gain = round(float(val), 1)
         if gain <= 0:
-            print("  gain must be > 0")
-            return
+            return "gain must be > 0"
     except ValueError:
-        print("  invalid gain value")
-        return
+        return "invalid gain value"
     kind, slices = ALL_BANKS[bank]
     ch = TYPE_CHANNEL[kind]
     active[bank] = {"gain": gain, "ch": ch, "kind": kind}
     last_touched = bank
     play_bank(bank, kind, slices, gain)
     bar = "█" * max(0, round(gain * 5))
-    print(f"  {bank}  gain={gain:.1f}  {bar}")
+    return f"{bank}  gain={gain:.1f}  {bar}"
 
 def cmd_nudge(direction):
     global last_touched
     if not last_touched:
-        print("  play a bank first")
-        return
+        return "play a bank first"
     bank = last_touched
-    info = active.get(bank)
-    if not info:
-        print(f"  {bank} is not playing — use 'play {bank}' first")
-        return
-    gain = round(info["gain"] + (0.1 if direction == "+" else -0.1), 1)
+    if bank not in active:
+        return f"{bank} not playing — use 'play {bank}' first"
+    gain = round(active[bank]["gain"] + (0.1 if direction == "+" else -0.1), 1)
     gain = max(0.1, gain)
-    cmd_gain(bank, gain)
+    return cmd_gain(bank, gain)
 
-def main():
+def get_status_lines():
+    lines = []
+    if not active:
+        lines.append("  [nothing playing]")
+    else:
+        for bank, info in active.items():
+            bar = "█" * max(0, round(info["gain"] * 5))
+            marker = " ◀" if bank == last_touched else ""
+            lines.append(f"  {info['ch']}  {bank:<16} {info['gain']:.1f}  {bar:<15}{marker}")
+    return lines
+
+def get_report():
+    if not active:
+        return ["  no data yet"]
+    lines = ["", "  === Final gain table ==="]
+    for bank, info in active.items():
+        lines.append(f"  {bank:<16} ({info['kind']:<8})  gain = {info['gain']:.1f}")
+    lines.append("")
+    return lines
+
+def main(stdscr):
+    global log_lines
+
+    curses.curs_set(1)
+    curses.use_default_colors()
+    stdscr.scrollok(False)
+
     pause_evolve()
 
-    def on_exit(sig, frame):
-        print()
-        print_report()
-        send("hush")
-        resume_evolve()
-        sys.exit(0)
-    signal.signal(signal.SIGINT, on_exit)
+    bank_list = list(ALL_BANKS.keys())
 
-    print("\n" + "="*45)
-    print("  eul audition")
-    print("="*45)
-    print("  play <bank>        add to mix")
-    print("  stop <bank>        remove from mix")
-    print("  stop all           clear mix")
-    print("  gain <bank> <n>    set gain")
-    print("  + / -              nudge last touched bank")
-    print("  r                  replay all")
-    print("  status             show active layers")
-    print("  list               show all banks")
-    print("  report             print gain table")
-    print("  q                  quit")
-    print("="*45 + "\n")
-    print_banks()
-    print()
+    def draw(input_buf=""):
+        h, w = stdscr.getmaxyx()
+        stdscr.erase()
 
-    while True:
+        # --- top: bank list ---
+        header = "  Banks: " + "  ".join(bank_list)
+        stdscr.addstr(0, 0, header[:w-1], curses.A_DIM)
+        stdscr.addstr(1, 0, "─" * (w-1), curses.A_DIM)
+
+        # --- middle: log output ---
+        log_area_top = 2
+        status_height = len(active) + 3  # layers + borders + title
+        help_height = 2
+        log_area_bottom = h - status_height - help_height - 2  # input line
+        log_area_height = max(1, log_area_bottom - log_area_top)
+
+        visible_logs = log_lines[-(log_area_height):]
+        for i, line in enumerate(visible_logs):
+            try:
+                stdscr.addstr(log_area_top + i, 0, line[:w-1])
+            except curses.error:
+                pass
+
+        # --- status box ---
+        status_top = h - status_height - help_height - 1
         try:
-            raw = input("audition> ").strip()
-        except EOFError:
-            break
+            stdscr.addstr(status_top, 0, "─" * (w-1), curses.A_DIM)
+            stdscr.addstr(status_top + 1, 0, "  Active layers:", curses.A_BOLD)
+            status_lines = get_status_lines()
+            for i, line in enumerate(status_lines):
+                stdscr.addstr(status_top + 2 + i, 0, line[:w-1])
+        except curses.error:
+            pass
 
-        if not raw:
+        # --- help bar ---
+        help_top = h - help_height - 1
+        help_text = "  play <bank>  stop <bank>  stop all  gain <bank> <n>  +  -  r  list  report  q"
+        try:
+            stdscr.addstr(help_top, 0, "─" * (w-1), curses.A_DIM)
+            stdscr.addstr(help_top + 1, 0, help_text[:w-1], curses.A_DIM)
+        except curses.error:
+            pass
+
+        # --- input line ---
+        prompt = "audition> " + input_buf
+        try:
+            stdscr.addstr(h-1, 0, prompt[:w-1], curses.A_BOLD)
+        except curses.error:
+            pass
+
+        stdscr.move(h-1, min(len(prompt), w-1))
+        stdscr.refresh()
+
+    def log(msg):
+        for line in msg.split("\n"):
+            log_lines.append(line)
+
+    draw()
+
+    input_buf = ""
+    while True:
+        draw(input_buf)
+        try:
+            ch = stdscr.get_wch()
+        except curses.error:
             continue
 
-        parts = raw.split()
-        cmd = parts[0].lower()
+        if ch in (curses.KEY_BACKSPACE, "\x7f", "\b"):
+            input_buf = input_buf[:-1]
+        elif ch in ("\n", "\r", curses.KEY_ENTER):
+            raw = input_buf.strip()
+            input_buf = ""
+            if not raw:
+                continue
 
-        if cmd == "q":
-            print_report()
-            send("hush")
-            resume_evolve()
-            sys.exit(0)
-        elif cmd == "list":
-            print_banks()
-        elif cmd == "play" and len(parts) >= 2:
-            cmd_play(parts[1])
-        elif cmd == "stop" and len(parts) >= 2:
-            cmd_stop(parts[1] if parts[1] != "all" else "all")
-        elif cmd == "gain" and len(parts) >= 3:
-            cmd_gain(parts[1], parts[2])
-        elif cmd in ("+", "-"):
-            cmd_nudge(cmd)
-        elif cmd == "r":
-            replay_all()
-            print_status()
-        elif cmd == "status":
-            print_status()
-        elif cmd == "report":
-            print_report()
-        else:
-            print("  ?  type 'list' to see banks or check the commands above")
+            log(f"audition> {raw}")
+            parts = raw.split()
+            cmd = parts[0].lower()
+
+            if cmd == "q":
+                report = get_report()
+                for line in report:
+                    log(line)
+                draw()
+                send("hush")
+                resume_evolve()
+                time.sleep(1)
+                return
+            elif cmd == "list":
+                log("  Banks:")
+                for b, (kind, _) in ALL_BANKS.items():
+                    playing = "  ▶" if b in active else ""
+                    log(f"    {b:<16} ({kind}){playing}")
+            elif cmd == "play" and len(parts) >= 2:
+                log("  " + cmd_play(parts[1]))
+            elif cmd == "stop" and len(parts) >= 2:
+                log("  " + cmd_stop(" ".join(parts[1:])))
+            elif cmd == "gain" and len(parts) >= 3:
+                log("  " + cmd_gain(parts[1], parts[2]))
+            elif cmd in ("+", "-"):
+                log("  " + cmd_nudge(cmd))
+            elif cmd == "r":
+                for bank, info in active.items():
+                    kind, slices = ALL_BANKS[bank]
+                    play_bank(bank, kind, slices, info["gain"])
+                log("  replaying all")
+            elif cmd == "report":
+                for line in get_report():
+                    log(line)
+            else:
+                log(f"  ? unknown command '{raw}'")
+        elif isinstance(ch, str) and ch.isprintable():
+            input_buf += ch
 
 if __name__ == "__main__":
-    main()
+    try:
+        curses.wrapper(main)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        send("hush")
+        resume_evolve()
