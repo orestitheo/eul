@@ -289,14 +289,29 @@ def pick_drums_and_chords(mode):
     # More likely in chords/drone mode
     voice_prob = 0.7 if mode in ("chords", "drone") else 0.4
     if random.random() < voice_prob:
-        voice_slow = random.choice([4, 6, 8])
+        voice_slow = random.choice([3, 4, 6])
         voice_sample = random.choice(VOICE_SAMPLES)
+        # Stretch: slow speed stretches the sample without changing pitch
+        stretch = round(random.uniform(0.5, 0.9), 2)
+        # Interval patterns — fifths, half steps, octaves
+        voice_notes = random.choice([
+            "-2",               # slightly down (original behaviour)
+            "0 7 0 5",          # root, fifth, root, fourth
+            "0 -2 0 5",         # down a step, up a fourth
+            "0 3 0 7",          # minor feel
+            "0 5 3 0",          # descending
+            "7 0 7 12",         # fifth and octave
+            "[0,7]",            # power chord
+            "0 12 7 0",         # octave leap
+        ])
         voice = (
             f'd5 $ whenmod {total} {chord_on} id'
             f' $ slow {voice_slow} $ sound "{voice_sample}"'
             f' # gain {round(random.uniform(0.5, 0.7), 1)}'
+            f' # legato 1'
+            f' # speed {stretch}'
+            f' # note "{voice_notes}"'
             f' # room {round(random.uniform(0.85, 1.0), 2)}'
-            f' # note -2'
             f' # delay 0.7 # delaytime {random.choice([0.375, 0.5, 0.75])} # delayfeedback 0.5'
             f' # pan (slow {random.randint(8,16)} $ range 0.2 0.8 sine)'
         )
