@@ -15,13 +15,16 @@ s.waitForBoot {
     ~dirt.loadSoundFiles("/opt/eul/samples/texture");
     ~dirt.loadSoundFiles("/opt/eul/samples/percussive/dungeondrums");
     ~dirt.loadSoundFiles("/opt/eul/samples/percussive/rad");
+    ~dirt.loadSoundFiles("/opt/eul/samples/percussive/shxc1");
     ~dirt.loadSoundFiles("/opt/eul/samples/melodic/chords/ls");
     ~dirt.loadSoundFiles("/opt/eul/samples/melodic/chords/discoveryone");
-    ~dirt.loadSoundFiles("/opt/eul/samples/melodic/chords/akatosh");
+    ~dirt.loadSoundFiles("/opt/eul/samples/melodic/chords/akatosh_chord");
     ~dirt.loadSoundFiles("/opt/eul/samples/melodic/chords/blackmirror");
+    ~dirt.loadSoundFiles("/opt/eul/samples/melodic/chords/shxc");
     ~dirt.loadSoundFiles("/opt/eul/samples/melodic/chords/t99");
     ~dirt.loadSoundFiles("/opt/eul/samples/melodic/singletone/discoveryone");
-    ~dirt.loadSoundFiles("/opt/eul/samples/melodic/singletone/akatosh");
+    ~dirt.loadSoundFiles("/opt/eul/samples/melodic/singletone/akatosh_voice");
+    ~dirt.loadSoundFiles("/opt/eul/samples/melodic/singletone/madonna");
     ~dirt.start(57120, [0, 0]);
     "SuperDirt ready".postln;
 };

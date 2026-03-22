@@ -22,7 +22,8 @@ ALL_BANKS = {
     "texture":      ("texture", 3),
     "t99":          ("pad",     1),
     "ls":           ("chords",  9),
-    "akatosh":      ("chords",  2),
+    "akatosh_chord": ("chords",  2),
+    "akatosh_voice": ("voice",   1),
     "blackmirror":  ("chords",  1),
     "discoveryone": ("chords",  1),
     "shxc":         ("chords",  1),
@@ -72,7 +73,7 @@ def build_pattern(bank, kind, slices, gain):
     elif kind == "texture":
         return f'$ slow 2 $ sound "texture:0 texture:1 texture:2" # gain {gain} # room 0.6'
     elif kind == "chords":
-        return f'$ slow 3 $ sound "{bank}:0" # loopAt 4 # legato 1 # gain {gain} # room 0.7'
+        return f'$ slow 3 $ sound "{bank}:0" # legato 1 # gain {gain} # room 0.7'
     elif kind == "voice":
         return f'$ slow 6 $ sound "{bank}:0" # gain {gain} # room 0.9 # note -2'
 
@@ -98,7 +99,8 @@ def cmd_play(arg):
     kind, slices = ALL_BANKS[bank]
     ch = TYPE_CHANNEL[kind]
     key = arg  # use bank:idx as the active key so they don't overwrite each other
-    gain = active[key]["gain"] if key in active else 1.0
+    default_gain = 0.5 if kind == "voice" else 1.0
+    gain = active[key]["gain"] if key in active else default_gain
     active[key] = {"gain": gain, "ch": ch, "kind": kind}
     last_touched = key
 

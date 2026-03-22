@@ -29,16 +29,26 @@ DRUM_BANKS = {
     "rad": 37,
     "shxc1": 15,
 }
-CHORD_SAMPLES = (
-    [f"ls:{i}" for i in range(9)] +
-    [f"akatosh:{i}" for i in range(2)] +
-    [f"shxc:{i}" for i in range(1)] +
-    ["blackmirror:0", "discoveryone:0"]
+# Each entry is (sample, weight). ls has many files but we don't want it to dominate.
+CHORD_SAMPLES_WEIGHTED = (
+    [(f"ls:{i}", 1) for i in range(9)] +
+    [(f"akatosh_chord:{i}", 3) for i in range(2)] +
+    [(f"shxc:{i}", 3) for i in range(1)] +
+    [("blackmirror:0", 3), ("discoveryone:0", 3)]
 )
-VOICE_SAMPLES = ["madonna:0", "discoveryone:0", "akatosh:0"]
+CHORD_SAMPLES = [s for s, _ in CHORD_SAMPLES_WEIGHTED]
+_CHORD_WEIGHTS = [w for _, w in CHORD_SAMPLES_WEIGHTED]
+VOICE_SAMPLES = ["madonna:0", "discoveryone:0", "akatosh_voice:0"]
 
-# Modes bias which layers are prominent this session
-MODES = ["drums", "chords", "drone", "glitch", "balanced"]
+# Modes define the structural character of a session
+# minimal:    drone + texture only — pure ambient, no rhythm
+# sparse:     drone + texture + chords, no drums
+# percussive: drone + drums only, no melody
+# melodic:    drone + t99 + chords, no drums, voice optional
+# full:       all layers
+# balanced:   all layers, nothing dominant
+# glitch:     chaotic drums + texture, fast/broken, minimal melody
+MODES = ["minimal", "sparse", "percussive", "melodic", "full", "balanced", "glitch"]
 
 def send(line):
     """Send a line to the TidalCycles REPL."""
@@ -100,7 +110,10 @@ def pick_texture(mode):
     )
 
 def pick_t99(mode, chord_on, total):
-    if mode not in ("chords", "drone", "balanced") and random.random() < 0.5:
+    # Only in modes where melody makes sense
+    if mode in ("minimal", "percussive", "glitch"):
+        return "d3 silence"
+    if mode in ("full", "balanced") and random.random() < 0.4:
         return "d3 silence"
 
     slow_factor = random.choice([2, 2, 3])
@@ -161,37 +174,50 @@ def pick_t99(mode, chord_on, total):
 
 def pick_drums_and_chords(mode):
     """
-    Returns (drums_line, chords_line, voice_line).
-    Mode biases how long drums vs chords sections are.
-    They never overlap.
+    Returns (drums_line, chords_line, voice_line, chord_on, total).
+    Mode determines which layers are present and their structural balance.
+    Drums and chords never overlap (complementary whenmod windows).
     """
     total = random.choice([6, 8, 10, 12])
 
-    if mode == "drums":
-        drum_frac = random.uniform(0.65, 0.85)
-    elif mode == "chords":
-        drum_frac = random.uniform(0.2, 0.45)
-    elif mode == "drone":
-        # Both quieter / shorter, drone dominates
-        drum_frac = random.uniform(0.4, 0.6)
-    else:
-        drum_frac = random.uniform(0.4, 0.65)
+    # Structural decisions per mode
+    has_drums  = mode in ("percussive", "full", "balanced", "glitch")
+    has_chords = mode in ("sparse", "melodic", "full", "balanced")
+    # glitch: drums dominate, chords rare
+    if mode == "glitch":
+        has_chords = random.random() < 0.3
 
-    drum_on = max(2, int(total * drum_frac))
-    chord_on = total - drum_on
+    if mode == "percussive":
+        drum_frac = random.uniform(0.7, 0.9)
+    elif mode == "sparse":
+        drum_frac = 0.0  # no drums
+    elif mode == "melodic":
+        drum_frac = 0.0  # no drums
+    elif mode == "glitch":
+        drum_frac = random.uniform(0.7, 0.9)
+    elif mode == "full":
+        drum_frac = random.uniform(0.45, 0.65)
+    else:  # balanced
+        drum_frac = random.uniform(0.4, 0.6)
+
+    drum_on  = max(2, int(total * drum_frac)) if has_drums else 0
+    chord_on = total - drum_on if has_chords else 0
 
     drum_bank = random.choice(list(DRUM_BANKS.keys()))
     max_slices = DRUM_BANKS[drum_bank]
     slices = [random.randint(0, max_slices - 1) for _ in range(8)]
     drum_seq = " ".join(f"{drum_bank}:{i}" for i in slices)
 
-    drum_gain = round(random.uniform(0.7, 0.9) if mode == "drums" else random.uniform(0.6, 0.8), 1)
+    drum_gain = round(random.uniform(0.8, 0.9), 1)  # stable, narrow range
     drum_every_rev = random.randint(3, 6)
     dt = random.choice([0.25, 0.375, 0.5])
     delay_str = f' # delay (sometimes (const 0.5) 0) # delaytime (slow 3 $ range {dt} {round(dt*1.5, 3)} sine) # delayfeedback 0.35 # pan (slow 5 $ range 0.1 0.9 sine)'
 
-    # Pick a drum style each session
-    drum_style = random.choice(["straight", "straight", "halftime", "polyrhythm", "sparse", "chaotic"])
+    # Glitch mode forces chaotic drum style
+    if mode == "glitch":
+        drum_style = random.choice(["chaotic", "chaotic", "polyrhythm"])
+    else:
+        drum_style = random.choice(["straight", "straight", "halftime", "polyrhythm", "sparse", "chaotic"])
 
     if drum_style == "straight":
         # Normal 8-step sequence, occasional fast
@@ -234,61 +260,67 @@ def pick_drums_and_chords(mode):
             f' $ sound "{drum_seq}"'
         )
 
-    drums = (
-        f'd4 $ whenmod {total} {drum_on} id'
-        f'{pattern_str}'
-        f' # gain {drum_gain}'
-        f' # room 0'
-        f' # speed (range 0.8 1.2 rand)'
-        f' # pan (range 0.3 0.7 rand)'
-        f'{delay_str}'
-    )
+    if not has_drums:
+        drums = "d4 silence"
+    else:
+        drums = (
+            f'd4 $ whenmod {total} {drum_on} id'
+            f'{pattern_str}'
+            f' # gain {drum_gain}'
+            f' # room 0'
+            f' # speed (range 0.8 1.2 rand)'
+            f' # pan (range 0.3 0.7 rand)'
+            f'{delay_str}'
+        )
 
-    num_chords = random.randint(3, 6)
-    chord_picks = random.sample(CHORD_SAMPLES, num_chords)
-    chord_list = ", ".join(f'"{c}"' for c in chord_picks)
-    chord_slow = random.choice([2, 3])
-    chord_gain = round(random.uniform(1.2, 1.8) if mode == "chords" else random.uniform(0.9, 1.4), 1)
-    chord_room = round(random.uniform(0.6, 0.9), 1)
-    chord_hpf = random.randint(150, 300)
-    pan_slow = random.randint(4, 10)
+    if not has_chords:
+        chords = "d6 silence"
+    else:
+        num_chords = random.randint(3, 6)
+        chord_picks = random.choices(CHORD_SAMPLES, weights=_CHORD_WEIGHTS, k=num_chords)
+        chord_list = ", ".join(f'"{c}"' for c in chord_picks)
+        chord_slow = random.choice([2, 3])
+        chord_gain = round(random.uniform(0.6, 1.0), 1)
+        chord_hpf = random.randint(150, 300)
+        pan_slow = random.randint(4, 10)
 
-    chord_style = random.choice(["looped", "looped", "staccato", "glitch", "reverse"])
-    if chord_style == "looped":
-        loop_at = random.choice([2, 4, 4, 8])
-        style_str = f' # loopAt {loop_at} # legato 1'
-    elif chord_style == "staccato":
-        style_str = f' # legato {round(random.uniform(0.1, 0.4), 1)} # cut 1'
-    elif chord_style == "glitch":
-        begin = round(random.uniform(0.0, 0.5), 2)
-        end = round(begin + random.uniform(0.1, 0.4), 2)
-        style_str = f' # begin {begin} # end {end} # legato 1 # loopAt {random.choice([1,2,4])}'
-    elif chord_style == "reverse":
-        style_str = f' # loopAt {random.choice([2,4])} # legato 1 # speed -1'
+        chord_style = random.choice(["looped", "looped", "looped", "staccato", "glitch", "reverse"])
+        if chord_style == "looped":
+            loop_at = random.choice([2, 4, 4, 8])
+            style_str = f' # loopAt {loop_at} # legato 1'
+        elif chord_style == "staccato":
+            style_str = f' # legato {round(random.uniform(0.1, 0.4), 1)} # cut 1'
+        elif chord_style == "glitch":
+            begin = round(random.uniform(0.0, 0.5), 2)
+            end = round(begin + random.uniform(0.1, 0.4), 2)
+            style_str = f' # begin {begin} # end {end} # legato 1 # loopAt {random.choice([1,2,4])}'
+        elif chord_style == "reverse":
+            style_str = f' # loopAt {random.choice([2,4])} # legato 1 # speed -1'
 
-    chord_delay = (
-        f' # delay {round(random.uniform(0.3, 0.7), 1)}'
-        f' # delaytime {random.choice([0.25, 0.375, 0.5, 0.75])}'
-        f' # delayfeedback {round(random.uniform(0.2, 0.5), 1)}'
-    ) if random.random() < 0.7 else ""
-    chord_room = round(random.uniform(0.7, 1.0), 1) if random.random() < 0.6 else round(random.uniform(0.0, 0.3), 1)
+        chord_delay = (
+            f' # delay {round(random.uniform(0.3, 0.7), 1)}'
+            f' # delaytime {random.choice([0.25, 0.375, 0.5, 0.75])}'
+            f' # delayfeedback {round(random.uniform(0.2, 0.5), 1)}'
+        ) if random.random() < 0.7 else ""
+        chord_room = round(random.uniform(0.7, 1.0), 1) if random.random() < 0.6 else round(random.uniform(0.0, 0.3), 1)
 
-    chords = (
-        f'd6 $ whenmod {total} {chord_on} id'
-        f' $ every {random.randint(3,6)} (jux rev)'
-        f' $ slow {chord_slow} $ sound (choose [{chord_list}])'
-        f'{style_str}'
-        f' # gain {chord_gain}'
-        f' # hpf {chord_hpf}'
-        f' # room {chord_room}'
-        f'{chord_delay}'
-        f' # pan (slow {pan_slow} $ range 0.2 0.8 sine)'
-    )
+        chords = (
+            f'd6 $ whenmod {total} {chord_on} id'
+            f' $ every {random.randint(3,6)} (jux rev)'
+            f' $ slow {chord_slow} $ sound (choose [{chord_list}])'
+            f'{style_str}'
+            f' # gain {chord_gain}'
+            f' # hpf {chord_hpf}'
+            f' # room {chord_room}'
+            f'{chord_delay}'
+            f' # pan (slow {pan_slow} $ range 0.2 0.8 sine)'
+        )
 
-    # Voice — only during chord window
-    # More likely in chords/drone mode
-    voice_prob = 0.7 if mode in ("chords", "drone") else 0.4
-    if random.random() < voice_prob:
+    # Voice — only when chords are present
+    voice_prob = 0.6 if mode in ("melodic", "sparse") else 0.35
+    if not has_chords:
+        voice = "d5 silence"
+    elif random.random() < voice_prob:
         voice_slow = random.choice([3, 4, 6])
         voice_sample = random.choice(VOICE_SAMPLES)
         # Stretch: slow speed stretches the sample without changing pitch
@@ -323,19 +355,19 @@ def pick_drums_and_chords(mode):
 def micro_evolve():
     """Small tweaks every 60s — nudge gains and filter sweeps without restructuring."""
     print("Micro-evolving...")
-    # Drone: just tweak gain and filter range
+    # Drone: just tweak gain and filter range (don't change sample — full evolve handles that)
     lpf_lo = random.randint(200, 500)
     lpf_hi = random.randint(800, 2500)
     slow_factor = random.choice([8, 12, 16, 24])
-    gain = round(random.uniform(0.4, 0.8), 1)
-    send(f'd1 $ sound "drone:0" # gain {gain} # lpf (slow {slow_factor} $ range {lpf_lo} {lpf_hi} perlin) # room {round(random.uniform(0.7, 1.0), 1)}')
+    gain = round(random.uniform(0.5, 0.8), 1)
+    send(f'd1 $ (# gain {gain}) $ (# lpf (slow {slow_factor} $ range {lpf_lo} {lpf_hi} perlin))')
 
     # Texture: nudge gain and speed
     gain = round(random.uniform(0.4, 0.7), 1)
     send(f'd2 $ (# gain {gain}) $ (# speed (rand + {round(random.uniform(0.3, 0.8), 1)}))')
 
-    # Chords: nudge gain
-    chord_gain = round(random.uniform(2.0, 2.8), 1)
+    # Chords: nudge gain (keep in normalized range)
+    chord_gain = round(random.uniform(0.6, 1.0), 1)
     send(f'd6 $ (# gain {chord_gain})')
 
     print("Micro-evolve done.")
