@@ -103,7 +103,7 @@ def pick_t99(mode, chord_on, total):
     if mode not in ("chords", "drone", "balanced") and random.random() < 0.5:
         return "d3 silence"
 
-    slow_factor = random.choice([3, 4, 6])
+    slow_factor = random.choice([2, 2, 3])
     gain = round(random.uniform(0.7, 0.9), 1)
     loop_at = random.choice([2, 4, 4, 8])
 
@@ -145,7 +145,7 @@ def pick_t99(mode, chord_on, total):
         # Very slow, just 2 notes
         n1, n2 = random.choice([(0, 7), (0, 12), (7, 12), (0, 5), (3, 7)])
         notes = f"{n1} {n2}"
-        slow_factor = random.choice([6, 8, 12])
+        slow_factor = random.choice([3, 4])
         note_str = f' # note "{notes}"'
 
     return (
