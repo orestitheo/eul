@@ -177,13 +177,24 @@ def pick_drums_and_chords(mode):
     chord_hpf = random.randint(150, 300)
     pan_slow = random.randint(4, 10)
 
-    loop_at = random.choice([2, 4, 4, 8])
+    chord_style = random.choice(["looped", "looped", "staccato", "glitch", "reverse"])
+    if chord_style == "looped":
+        loop_at = random.choice([2, 4, 4, 8])
+        style_str = f' # loopAt {loop_at} # legato 1'
+    elif chord_style == "staccato":
+        style_str = f' # legato {round(random.uniform(0.1, 0.4), 1)} # cut 1'
+    elif chord_style == "glitch":
+        begin = round(random.uniform(0.0, 0.5), 2)
+        end = round(begin + random.uniform(0.1, 0.4), 2)
+        style_str = f' # begin {begin} # end {end} # legato 1 # loopAt {random.choice([1,2,4])}'
+    elif chord_style == "reverse":
+        style_str = f' # loopAt {random.choice([2,4])} # legato 1 # speed -1'
+
     chords = (
         f'd6 $ whenmod {total} {chord_on} id'
         f' $ every {random.randint(3,6)} (jux rev)'
         f' $ slow {chord_slow} $ sound (choose [{chord_list}])'
-        f' # loopAt {loop_at}'
-        f' # legato 1'
+        f'{style_str}'
         f' # gain {chord_gain}'
         f' # hpf {chord_hpf}'
         f' # room {chord_room}'
