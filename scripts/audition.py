@@ -81,31 +81,52 @@ def play_bank(bank, kind, slices, gain):
     pat = build_pattern(bank, kind, slices, gain)
     send(f"{ch} {pat}")
 
-def cmd_play(bank):
+def cmd_play(arg):
     global last_touched
+    # Support bank:index syntax (e.g. drone:1)
+    if ":" in arg:
+        bank, idx = arg.rsplit(":", 1)
+        try:
+            idx = int(idx)
+        except ValueError:
+            return f"invalid index in '{arg}'"
+    else:
+        bank, idx = arg, None
+
     if bank not in ALL_BANKS:
         return f"unknown bank '{bank}'"
     kind, slices = ALL_BANKS[bank]
     ch = TYPE_CHANNEL[kind]
-    gain = active[bank]["gain"] if bank in active else 1.0
-    active[bank] = {"gain": gain, "ch": ch, "kind": kind}
-    last_touched = bank
-    play_bank(bank, kind, slices, gain)
-    return f"playing {bank} on {ch}  gain={gain:.1f}"
+    key = arg  # use bank:idx as the active key so they don't overwrite each other
+    gain = active[key]["gain"] if key in active else 1.0
+    active[key] = {"gain": gain, "ch": ch, "kind": kind}
+    last_touched = key
 
-def cmd_stop(bank):
-    if bank == "all":
+    if idx is not None:
+        # Play single slice directly
+        pat = build_pattern(bank, kind, slices, gain)
+        # Override sound to specific index
+        import re
+        pat = re.sub(r'sound "[^"]+"', f'sound "{bank}:{idx}"', pat)
+        send(f"{ch} {pat}")
+    else:
+        play_bank(bank, kind, slices, gain)
+    return f"playing {key} on {ch}  gain={gain:.1f}"
+
+def cmd_stop(key):
+    if key == "all":
         send("hush")
         active.clear()
         return "stopped all"
-    if bank not in active:
-        return f"{bank} is not playing"
-    send(f"{active[bank]['ch']} silence")
-    del active[bank]
-    return f"stopped {bank}"
+    if key not in active:
+        return f"{key} is not playing"
+    send(f"{active[key]['ch']} silence")
+    del active[key]
+    return f"stopped {key}"
 
-def cmd_gain(bank, val):
+def cmd_gain(key, val):
     global last_touched
+    bank = key.split(":")[0] if ":" in key else key
     if bank not in ALL_BANKS:
         return f"unknown bank '{bank}'"
     try:
@@ -116,11 +137,11 @@ def cmd_gain(bank, val):
         return "invalid gain value"
     kind, slices = ALL_BANKS[bank]
     ch = TYPE_CHANNEL[kind]
-    active[bank] = {"gain": gain, "ch": ch, "kind": kind}
-    last_touched = bank
+    active[key] = {"gain": gain, "ch": ch, "kind": kind}
+    last_touched = key
     play_bank(bank, kind, slices, gain)
     bar = "█" * max(0, round(gain * 5))
-    return f"{bank}  gain={gain:.1f}  {bar}"
+    return f"{key}  gain={gain:.1f}  {bar}"
 
 def cmd_nudge(direction):
     global last_touched
