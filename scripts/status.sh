@@ -17,7 +17,7 @@ ssh "$SERVER" "
 
 echo ""
 echo "==> Stream"
-STATUS=$(curl -s --max-time 5 -o /dev/null -w "%{http_code}" http://204.168.163.80:8000/stream 2>/dev/null || echo "000")
+STATUS=$(curl -s --max-time 3 -r 0-1 -o /dev/null -w "%{http_code}" http://204.168.163.80:8000/stream 2>/dev/null || echo "000")
 if [[ "$STATUS" == "200" ]]; then
   echo "  ✓ http://204.168.163.80:8000/stream  (live)"
 else
