@@ -118,8 +118,10 @@ def drone(g):
     slow_f  = g.map("drone_lpf_speed", 8, 24, integer=True)
     room    = g.map("drone_room", 0.5, 1.0)
     sample  = random.randint(0, 2)
+    begin   = round(random.uniform(0.0, 0.6), 2)
     return (
         f'd1 $ sound "drone:{sample}"'
+        f' # begin {begin}'
         f' # gain {gain}'
         f' # lpf (slow {slow_f} $ range {lpf_lo} {lpf_hi} perlin)'
         f' # room {room}'
@@ -138,12 +140,14 @@ def texture(g):
     tex_seq   = " ".join(f"texture:{i}" for i in picks)
     chaos     = g.get("drum_chaos")
     jux_int   = max(3, round(3 + (1 - chaos) * 5))
+    begin     = round(random.uniform(0.0, 0.7), 2)
     return (
         f'd2 $ whenmod {total} {on} id'
         f' $ every {jux_int} (jux rev)'
         f' $ slow {slow_f} $ sound "{tex_seq}"'
+        f' # begin {begin}'
         f' # gain {gain}'
-        f' # speed (rand + {round(spd_rand, 2)})'
+        f' # speed (slow 8 $ range {round(1.0 - spd_rand * 0.5, 2)} {round(1.0 + spd_rand * 0.5, 2)} perlin)'
         f' # room {g.map("chord_room", 0.4, 0.9)}'
     )
 
@@ -220,7 +224,7 @@ def drums(g, mode_flags):
         f' {transform_str} {sound_str}'
         f' # gain {gain}'
         f' # room 0'
-        f' # speed (range 0.8 1.2 rand)'
+        f' # speed (slow 6 $ range 0.85 1.15 perlin)'
         f' # pan (range 0.3 0.7 rand)'
         f'{delay_str}'
     )
@@ -240,16 +244,18 @@ def chords(g, chord_on, total):
     delay_wet  = g.map("chord_delay_wet", 0.0, 1.0)
     jux_int    = max(3, round(3 + (1 - g.get("drum_chaos")) * 4))
 
-    # Style determined by genes: high loop_len → looped, high chaos → glitch, low staccato → staccato
+    # Random start point — each session begins at a different place in the sample
+    begin = round(random.uniform(0.0, 0.7), 2)
+
+    # Style determined by genes: high chaos → glitch slice, low staccato → staccato, else looped
     chaos = g.get("drum_chaos")
     if chaos > 0.65:
-        begin = round(random.uniform(0.0, 0.5), 2)
-        end   = round(begin + random.uniform(0.1, 0.4), 2)
-        style_str = f' # begin {begin} # end {end} # legato 1 # loopAt {loop_at}'
+        end = round(begin + random.uniform(0.1, 0.4), 2)
+        style_str = f' # begin {begin} # end {min(end, 0.99)} # legato 1 # loopAt {loop_at}'
     elif staccato < 0.15:
-        style_str = f' # legato {staccato} # cut 1'
+        style_str = f' # begin {begin} # legato {staccato} # cut 1'
     else:
-        style_str = f' # loopAt {loop_at} # legato 1'
+        style_str = f' # begin {begin} # loopAt {loop_at} # legato 1'
 
     delay_str = (
         f' # delay {round(delay_wet, 2)}'

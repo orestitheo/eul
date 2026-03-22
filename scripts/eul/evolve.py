@@ -91,22 +91,43 @@ def evolve(g):
 
 
 def micro_evolve(g):
-    """Nudge gains and filter sweeps without restructuring."""
+    """
+    Medium micro-evolve every 40s.
+    Keeps current layer structure but shifts:
+      - drum pattern (new slice bias, density, rest prob)
+      - chord sample selection
+      - texture on/off and speed
+      - drone filter sweep
+      - gains across all channels
+    No layer switching, no tempo change.
+    """
     print("Micro-evolving...")
 
-    # Small gene nudge (tighter than full evolve)
-    g = g.mutate(rate=0.05, big_jump_prob=0.0)
+    # Nudge genes that drive within-session variation
+    g = g.mutate(rate=0.07, big_jump_prob=0.0)
 
+    # Drone: filter sweep + gain
     lpf_lo = g.map("drone_lpf_lo", 100, 600, integer=True)
     lpf_hi = g.map("drone_lpf_hi", 600, 3000, integer=True)
     slow_f = g.map("drone_lpf_speed", 8, 24, integer=True)
     gain   = g.map("drone_gain", 0.4, 1.0)
     send(f'd1 $ (# gain {gain}) $ (# lpf (slow {slow_f} $ range {lpf_lo} {lpf_hi} perlin))')
 
+    # Texture: nudge gain and speed only — don't swap samples, let them play through
     t_gain = g.map("texture_gain", 0.3, 0.9)
     t_spd  = g.map("texture_speed_rand", 0.1, 1.0)
-    send(f'd2 $ (# gain {t_gain}) $ (# speed (rand + {round(t_spd, 2)}))')
+    send(f'd2 $ (# gain {t_gain}) $ (# speed (slow 8 $ range {round(1.0 - t_spd * 0.5, 2)} {round(1.0 + t_spd * 0.5, 2)} perlin))')
 
+    # Drums: new sequence from genes (short percussive hits, fine to retrigger)
+    rest_prob  = g.get("drum_rest_prob")
+    slice_bias = g.get("drum_slice_bias")
+    bank       = random.choice(list(P.DRUM_BANKS.keys()))
+    max_slices = P.DRUM_BANKS[bank]
+    seq        = P._drum_seq(bank, 8, max_slices, rest_prob, slice_bias)
+    d_gain     = round(random.uniform(0.8, 0.9), 1)
+    send(f'd4 $ (# gain {d_gain}) $ sound "{seq}"')
+
+    # Chords: nudge gain only — long samples need to play through, don't swap
     c_gain = g.map("chord_gain", 0.4, 1.0)
     send(f'd6 $ (# gain {c_gain})')
 
@@ -127,11 +148,11 @@ if __name__ == "__main__":
         print(f"Current genes (nearest mode: {mode_name}, dist: {dist:.3f})")
         print(g)
     else:
-        print(f"eul evolve: full every {INTERVAL_MINUTES}min, micro every 60s. Ctrl+C to stop.")
+        print(f"eul evolve: full every {INTERVAL_MINUTES}min, micro every 30s. Ctrl+C to stop.")
         g = evolve(g)
         last_full = time.time()
         while True:
-            time.sleep(60)
+            time.sleep(30)
             if time.time() - last_full >= INTERVAL_MINUTES * 60:
                 g = evolve(g)
                 last_full = time.time()
