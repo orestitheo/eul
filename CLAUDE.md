@@ -1,40 +1,77 @@
-# eul — Generative Music App
+# eul — Generative Music Radio
 
 ## Project
-A browser-based generative music app for Demea (Oresti Theodoridis), experimental electronic musician from Malmö, Sweden. Built with Strudel (TidalCycles ported to JavaScript). Always-on, runs in the browser, hosted as a cloud app — eventually at music.demea.xyz.
-
-The goal: a living, breathing music generator that plays random combinations of predefined samples and drum patterns endlessly. No user interaction required — press play and it runs.
+An always-on internet radio station for Demea (Oresti Theodoridis), experimental electronic musician from Malmö, Sweden. Streams 24/7 at `http://204.168.163.80:8000/stream`. Self-evolving — patterns change automatically every 6 minutes, with micro-tweaks every 60 seconds.
 
 ## Stack
-- **Strudel** — TidalCycles for the browser. Pattern-based, sample-driven, generative. This is the core.
-- Vanilla JS/HTML wrapper around Strudel
-- No frameworks, no build tools unless Strudel requires them
-- Hosted on GitHub Pages or similar
+```
+TidalCycles (patterns) → SuperCollider/SuperDirt (audio) → JACK (routing) → DarkIce (encoder) → Icecast (HTTP stream)
+```
+- **TidalCycles** — Haskell pattern language, runs in ghci. Channels d1–d6.
+- **SuperDirt** — SuperCollider quark, handles sample playback and effects
+- **JACK** — headless virtual audio routing (dummy driver, no soundcard)
+- **DarkIce** — encodes JACK audio to MP3 192kbps
+- **Icecast** — serves HTTP stream on port 8000
+- **evolve.py** — Python script, self-evolves patterns every 6 min + micro-evolve every 60s
+
+## Server
+- IP: 204.168.163.80
+- Provider: Hetzner CPX22
+- OS: Ubuntu 24.04
+- SSH: `ssh root@204.168.163.80`
+- Logs: `/var/log/eul/`
+
+## tmux windows
+| Window | Process |
+|--------|---------|
+| 0 | Xvfb (virtual display for sclang) |
+| 1 | JACK |
+| 2 | SuperCollider + SuperDirt |
+| 3 | Icecast |
+| 4 | DarkIce |
+| 5 | TidalCycles REPL |
+| 6 | evolve.py loop |
+
+## Pattern channels
+| Channel | Role |
+|---------|------|
+| d1 | Drone — always on |
+| d2 | Texture — cycles in/out |
+| d3 | t99 melodic layer — during chord window |
+| d4 | Drums — whenmod gated |
+| d5 | Voice — during chord window |
+| d6 | Chords — whenmod gated, never overlaps drums |
 
 ## You are an expert in
-- Strudel and TidalCycles pattern syntax
+- TidalCycles pattern syntax and SuperDirt effects
 - Generative/algorithmic music composition
-- Browser audio (Web Audio API, sample loading)
+- SuperCollider, JACK, Icecast, DarkIce setup and operation
 - Building always-on ambient/generative music systems
 
-## What to build
-- Generative patterns using Strudel that randomize over time
-- Sample playback from a predefined set (Oresti's own samples + built-in Strudel samples)
-- Drum patterns with rhythmic variation and randomness
-- Something that sounds good on its own, not a demo — this is the actual product
-
 ## Artist context
-- Artist name: Demea — experimental electronic, samples, noise, not serious in tone
+- Artist name: Demea — experimental electronic, samples, noise
 - Main site: demea.xyz (separate repo: github.com/orestitheo/oresti-xyz)
-- This app will eventually be linked from or embedded in demea.xyz
-- Music style reference: "a mix of sounds and noises, drawn from the internet or otherwise discovered"
-- Album SYN on Bandcamp (dmea.bandcamp.com), mix on SoundCloud (soundcloud.com/catacombsun)
+- Music style: ambient, textural, slowly evolving, occasional beats
+- Album SYN on Bandcamp (dmea.bandcamp.com)
 
 ## Rules
 - Don't over-engineer
-- Short commit messages, no co-author credits
-- Explain Strudel/TidalCycles concepts briefly as you use them — Oresti is a SW engineer (6 years, AI/backend) but new to this domain
+- Short commit messages, don't credit yourself
+- Explain TidalCycles concepts briefly as you use them — Oresti is a SW engineer (6 years, AI/backend) but new to this domain
 - Keep it playful, not academic
+- Always rsync evolve.py to server after changes and run --once to apply immediately
+- After SC restarts, always reconnect JACK and run evolve --once
+
+## Key commands
+```bash
+./scripts/status.sh                    # check all services
+./scripts/evolve.sh                    # trigger full evolution
+./scripts/evolve.sh --micro            # trigger micro evolution
+./scripts/audition.sh                  # interactive gain mixer
+./scripts/add-samples.sh <folder>      # add new sample bank (full workflow)
+./scripts/normalize-samples.sh <folder> # compress/normalize samples
+./scripts/fade-samples.sh <folder>     # add fade-in/out to remove clicks
+```
 
 ## Git
 Remote: git@github.com:orestitheo/eul.git (SSH)
