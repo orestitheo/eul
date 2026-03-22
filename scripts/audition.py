@@ -64,7 +64,7 @@ def build_pattern(bank, kind, slices, gain):
         return f'$ sound "{seq}" # gain {gain} # room 0'
     elif kind == "pad":
         if bank == "t99":
-            return f'$ slow 4 $ sound "{bank}:0" # loopAt 4 # legato 1 # gain {gain} # room 0.8'
+            return f'$ sound "{bank}:0" # loopAt 1 # legato 1 # gain {gain} # room 0.8'
         elif bank == "drone":
             return f'$ slow 4 $ sound "drone:0 drone:1 drone:2" # gain {gain} # room 0.8'
         else:
