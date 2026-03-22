@@ -90,11 +90,11 @@ BANKS = {
     },
 
     # Drums (d4)
-    "dungeondrums": {
-        "path":    "percussive/dungeondrums",
-        "domain":  "percussive",
-        "slices":  14,
-    },
+    # "dungeondrums": {
+    #     "path":    "percussive/dungeondrums",
+    #     "domain":  "percussive",
+    #     "slices":  14,
+    # },
     "rad": {
         "path":    "percussive/rad",
         "domain":  "percussive",
