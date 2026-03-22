@@ -70,9 +70,9 @@ def play(bank, kind, slices, gain):
     elif kind == "voice":
         send(f'd1 $ slow 6 $ sound "{bank}:0" # gain {gain} # room 0.9 # note -2')
 
-def print_status(idx, total, bank, kind, gain):
-    bar = "█" * round(gain * 5)
-    print(f"\r   gain: {gain:.1f}  {bar:<20}  (+/- to adjust, Enter to confirm)", end="", flush=True)
+def print_status(gain):
+    bar = "█" * max(0, round(gain * 5))
+    print(f"   gain: {gain:.1f}  {bar:<20}")
 
 def cleanup(results):
     send("d1 silence")
@@ -107,37 +107,40 @@ def main():
         print(f"\n[{idx+1}/{total}]  {label}")
         print(f"  Playing now...")
         play(bank, kind, slices, gain)
-        print_status(idx, total, bank, kind, gain)
+        print_status(gain)
 
         while True:
-            raw = input("\n  > ").strip()
+            raw = input("  +  -  r  number  Enter=confirm  q=quit  > ").strip()
 
             if raw == "q":
                 cleanup(results)
                 sys.exit(0)
             elif raw == "r":
-                print(f"  Replaying {label}...")
                 play(bank, kind, slices, gain)
-                print_status(idx, total, bank, kind, gain)
+                print_status(gain)
             elif raw == "+":
                 gain = round(gain + 0.1, 1)
                 play(bank, kind, slices, gain)
-                print_status(idx, total, bank, kind, gain)
+                print_status(gain)
             elif raw == "-":
                 gain = round(max(0.1, gain - 0.1), 1)
                 play(bank, kind, slices, gain)
-                print_status(idx, total, bank, kind, gain)
+                print_status(gain)
             elif raw == "":
                 results[label] = gain
-                print(f"  ✓ {label} = {gain}")
+                print(f"  ✓ confirmed {label} = {gain}")
                 break
             else:
                 try:
-                    gain = round(float(raw), 1)
-                    play(bank, kind, slices, gain)
-                    print_status(idx, total, bank, kind, gain)
+                    val = round(float(raw), 1)
+                    if val <= 0:
+                        print("  gain must be > 0")
+                    else:
+                        gain = val
+                        play(bank, kind, slices, gain)
+                        print_status(gain)
                 except ValueError:
-                    print("  type a number, +, -, r, Enter, or q")
+                    print("  didn't understand that — try +, -, a number like 1.4, or Enter")
 
     cleanup(results)
 
