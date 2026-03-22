@@ -49,7 +49,7 @@ MODES = {
         "drone":      {"gain": 0.7},
         "texture":    {"density": 0.5},
         "percussive": {},
-        "melodic":    {"t99_slow": 0.7, "chord_slow": 0.7, "chord_room": 0.8, "voice_room": 0.9},
+        "melodic":    {"mel_slow": 0.7, "chord_slow": 0.7, "chord_room": 0.8, "voice_room": 0.9},
         "global":     {"complexity": 0.4, "randomness": 0.3, "tempo_center": 0.3},
         "has_drums":  False,
         "has_chords": True,

@@ -143,62 +143,59 @@ def texture(tex, glob):
 
 def melodic(mel, chord_on, total):
     """
-    T99 melodic layer (d3). mel: MelodicGenome.
+    Melodic layer (d3). mel: MelodicGenome.
 
-    Builds a rhythmically and timbrally varied pattern from a single sample.
-    Genes control: rhythm density, pitch/speed drift, sample slicing, layering.
+    Picks from non-looping chord banks. Genes control: rhythm density,
+    pitch/speed drift, sample slicing, layering.
     """
-    slow_f     = mel.map("t99_slow", 2, 5, integer=True)
-    gain       = mel.map("t99_gain", 0.5, 1.0)
-    idx        = mel.map("t99_interval", 0, len(MELODIC_INTERVALS) - 1, integer=True)
+    from banks import CHORD_BANKS
+    non_looping = {k: v for k, v in CHORD_BANKS.items() if not v.looping}
+    bank_name  = random.choice(list(non_looping.keys()))
+    sample     = f"{bank_name}:0"
+
+    slow_f     = mel.map("mel_slow", 2, 5, integer=True)
+    gain       = mel.map("mel_gain", 0.5, 1.0)
+    idx        = mel.map("mel_interval", 0, len(MELODIC_INTERVALS) - 1, integer=True)
     notes      = MELODIC_INTERVALS[idx]
     room       = mel.map("chord_room", 0.7, 1.0)
     dt         = random.choice([0.375, 0.5])
     pan_spd    = random.randint(6, 16)
-    begin      = mel.map("t99_begin", 0.0, 0.7)
+    begin      = mel.map("mel_begin", 0.0, 0.7)
 
-    # Rhythm — build a sequence with rests driven by t99_rhythm gene
-    # 0=one hit (original feel), 0.5=scattered, 1=dense stutter
-    rhythm     = mel.get("t99_rhythm")
+    # Rhythm — build a sequence with rests driven by mel_rhythm gene
+    # 0=one hit, 0.5=scattered, 1=dense stutter
+    rhythm     = mel.get("mel_rhythm")
     if rhythm < 0.15:
-        # Original: single hit, no rhythm sequence
-        seq = "t99:0"
+        seq = sample
     else:
         steps = 8
         hits  = max(1, round(rhythm * steps))
-        # Euclidean-style: spread hits evenly then add rests
         positions = set(round(i * steps / hits) % steps for i in range(hits))
-        seq = " ".join("t99:0" if i in positions else "~" for i in range(steps))
+        seq = " ".join(sample if i in positions else "~" for i in range(steps))
 
     # Speed/pitch — perlin-modulated drift around a center
-    spd_center = mel.map("t99_speed", 0.4, 1.8)
-    spd_rand   = mel.map("t99_speed_rand", 0.05, 0.6)
+    spd_center = mel.map("mel_speed", 0.4, 1.8)
+    spd_rand   = mel.map("mel_speed_rand", 0.05, 0.6)
     spd_lo     = round(max(0.2, spd_center - spd_rand), 2)
     spd_hi     = round(min(2.5, spd_center + spd_rand), 2)
-    spd_slow   = random.randint(4, 12)   # how slowly pitch drifts
+    spd_slow   = random.randint(4, 12)
     speed_str  = f'(slow {spd_slow} $ range {spd_lo} {spd_hi} perlin)'
 
     # Chop — slice sample into N fragments and sequence them
-    chop       = mel.get("t99_chop")
-    chop_n     = round(chop * 7) + 1   # maps to 1-8, 1=no chop
-    chop_str   = f' # unit "c" # speed {chop_n}' if chop_n > 1 else ""
-    # unit "c" in SuperDirt plays sample at original pitch regardless of speed,
-    # so we use it only for pure chop — otherwise use perlin pitch modulation
+    chop_n     = round(mel.get("mel_chop") * 7) + 1   # 1=no chop, up to 8
     if chop_n > 1:
         speed_param = f' # unit "c" # speed {chop_n}'
-        pitch_param = f' # note "{notes}"'
     else:
         speed_param = f' # speed {speed_str}'
-        pitch_param = f' # note "{notes}"'
+    pitch_param = f' # note "{notes}"'
 
     # Layer — optionally stack a second voice at different speed/octave
-    layer      = mel.get("t99_layer")
     layer_str  = ""
-    if layer > 0.5:
+    if mel.get("mel_layer") > 0.5:
         layer_spd  = round(spd_center * random.choice([0.5, 0.75, 1.5, 2.0]), 2)
         layer_spd  = max(0.2, min(2.5, layer_spd))
         layer_note = random.choice(["-12", "-7", "0", "7", "12"])
-        layer_str  = f', slow {slow_f * 2} $ sound "t99:0" # speed {layer_spd} # note "{layer_note}" # gain {round(gain * 0.5, 2)} # room {room} # pan (slow {pan_spd + 4} $ range 0.6 0.9 sine)'
+        layer_str  = f', slow {slow_f * 2} $ sound "{sample}" # speed {layer_spd} # note "{layer_note}" # gain {round(gain * 0.5, 2)} # room {room} # pan (slow {pan_spd + 4} $ range 0.6 0.9 sine)'
 
     core = (
         f'slow {slow_f} $ sound "{seq}"'
