@@ -289,12 +289,18 @@ def drums(perc, glob):
 
 def chords(mel, chord_on, total, glob):
     """Chord layer (d6). mel: MelodicGenome, glob: GlobalGenome."""
-    num_picks  = random.randint(2, 5)
-    picks_idx  = random.choices(range(len(CHORD_SAMPLES)), weights=_CHORD_WEIGHTS, k=num_picks)
-    # Use the first pick to determine if we're in a looping bank
-    # (all picks in a given evolve tend to come from similar banks)
-    is_looping = CHORD_LOOPING[picks_idx[0]]
-    picks      = [CHORD_SAMPLES[i] for i in picks_idx]
+    from banks import CHORD_BANKS
+
+    # Exclusive: pick ONE bank per evolve, weighted by bank weight (not sample count)
+    bank_names  = list(CHORD_BANKS.keys())
+    bank_weights = [CHORD_BANKS[b].weight for b in bank_names]
+    bank_name   = random.choices(bank_names, weights=bank_weights, k=1)[0]
+    bank        = CHORD_BANKS[bank_name]
+    is_looping  = bank.looping
+
+    # Pick samples only from the chosen bank
+    num_picks  = min(random.randint(2, 4), len(bank.samples))
+    picks      = [f"{bank_name}:{i}" for i in random.choices(bank.samples, k=num_picks)]
     chord_list = ", ".join(f'"{c}"' for c in picks)
 
     slow_f    = mel.map("chord_slow", 1, 4, integer=True)
