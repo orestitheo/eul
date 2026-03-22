@@ -1,19 +1,14 @@
 #!/usr/bin/env python3
 """
-audition.py — plays each sample bank one at a time so you can set good gain levels.
-
-Usage:
-  ssh -t root@204.168.163.80 "python3 /opt/eul/scripts/audition.py"
-
-For each bank, type a number to set gain and advance, or +/- to nudge.
-Evolve loop is paused while running and restored on exit.
+audition.py — plays each sample bank so you can dial in good gain levels.
 
 Controls:
-  1.4         → set gain to 1.4 and advance to next bank
-  +           → louder (+0.1), replays
-  -           → quieter (-0.1), replays
-  Enter       → keep current gain and advance
-  q           → quit
+  +       → louder (+0.1), replays
+  -       → quieter (-0.1), replays
+  1.4     → set gain to 1.4, replays
+  Enter   → confirm current gain and move to next
+  r       → replay current bank
+  q       → quit and print results
 """
 
 import subprocess
@@ -52,14 +47,12 @@ def send(line):
 def pause_evolve():
     subprocess.run(["tmux", "send-keys", "-t", f"{TMUX_SESSION}:{EVOLVE_WINDOW}", "C-c", ""])
     time.sleep(0.5)
-    print("  (evolve loop paused)")
 
 def resume_evolve():
     subprocess.run([
         "tmux", "send-keys", "-t", f"{TMUX_SESSION}:{EVOLVE_WINDOW}",
         "python3 -u /opt/eul/scripts/evolve.py 2>&1 | tee /var/log/eul/evolve.log", "Enter"
     ])
-    print("  (evolve loop resumed)")
 
 def play(bank, kind, slices, gain):
     if kind == "drums":
@@ -77,55 +70,74 @@ def play(bank, kind, slices, gain):
     elif kind == "voice":
         send(f'd1 $ slow 6 $ sound "{bank}:0" # gain {gain} # room 0.9 # note -2')
 
+def print_status(idx, total, bank, kind, gain):
+    bar = "█" * round(gain * 5)
+    print(f"\r   gain: {gain:.1f}  {bar:<20}  (+/- to adjust, Enter to confirm)", end="", flush=True)
+
 def cleanup(results):
     send("d1 silence")
     resume_evolve()
     if results:
-        print("\n=== Gain table ===")
+        print("\n\n=== Gain table — paste into evolve.py ===\n")
         for label, gain in results.items():
             print(f"  {label}: {gain}")
+        print()
 
 def main():
     results = {}
+    total = len(BANKS)
 
     pause_evolve()
 
     def on_exit(sig, frame):
+        print()
         cleanup(results)
         sys.exit(0)
     signal.signal(signal.SIGINT, on_exit)
 
-    print("\neul audition — type a number to set gain + advance, +/- to nudge, Enter to keep, q to quit\n")
+    print("\n" + "="*50)
+    print("  eul audition")
+    print("  +/-: adjust gain   number: set gain   r: replay   Enter: confirm & next   q: quit")
+    print("="*50)
 
-    for bank, kind, slices in BANKS:
+    for idx, (bank, kind, slices) in enumerate(BANKS):
         gain = 1.0
         label = f"{bank} ({kind})"
 
-        print(f"\n▶  {label}")
+        print(f"\n[{idx+1}/{total}]  {label}")
+        print(f"  Playing now...")
         play(bank, kind, slices, gain)
+        print_status(idx, total, bank, kind, gain)
 
         while True:
-            raw = input(f"   gain={gain}: ").strip()
+            raw = input("\n  > ").strip()
 
             if raw == "q":
                 cleanup(results)
                 sys.exit(0)
+            elif raw == "r":
+                print(f"  Replaying {label}...")
+                play(bank, kind, slices, gain)
+                print_status(idx, total, bank, kind, gain)
             elif raw == "+":
                 gain = round(gain + 0.1, 1)
                 play(bank, kind, slices, gain)
+                print_status(idx, total, bank, kind, gain)
             elif raw == "-":
                 gain = round(max(0.1, gain - 0.1), 1)
                 play(bank, kind, slices, gain)
+                print_status(idx, total, bank, kind, gain)
             elif raw == "":
                 results[label] = gain
+                print(f"  ✓ {label} = {gain}")
                 break
             else:
                 try:
                     gain = round(float(raw), 1)
-                    results[label] = gain
-                    break
+                    play(bank, kind, slices, gain)
+                    print_status(idx, total, bank, kind, gain)
                 except ValueError:
-                    print("   type a number, +, -, or Enter")
+                    print("  type a number, +, -, r, Enter, or q")
 
     cleanup(results)
 
