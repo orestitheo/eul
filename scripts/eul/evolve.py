@@ -2,15 +2,20 @@
 """
 eul — genetic self-evolving pattern composer v2.
 
-Each full evolve (every 3 min):
-  1. Mutate each domain genome independently (per-domain rate)
-  2. Find nearest mode attractor, nudge each domain toward its targets
-  3. Tick world events — may fire a new event or apply active ones
-  4. Build patterns and send to TidalCycles
-  5. Save state
+Each domain evolves on its own clock — they fall in and out of phase,
+creating emergent complexity from overlapping cycles.
 
-Micro-evolve (every 30s):
-  Nudge gains/filters within the current structure, no layer switching.
+Domain intervals (tunable in DOMAIN_INTERVALS):
+  drone      — 8 min   (the foundation, barely moves)
+  texture    — 4 min   (breathes noticeably)
+  percussive — 90 sec  (most volatile)
+  melodic    — 5 min   (harmonic shifts are slow)
+  global     — 6 min   (tempo + complexity drift)
+
+Main loop ticks every 30s, checks which domains are due, mutates only those,
+then rebuilds + sends all patterns if anything changed.
+
+World events tick on their own cadence alongside domain evolution.
 """
 
 import random
@@ -32,7 +37,21 @@ from send    import send, send_all
 import patterns as P
 
 STATE_FILE = "/opt/eul/state/genes.json"
-INTERVAL_MINUTES = 3
+
+# Per-domain evolution intervals in seconds. Tune freely.
+DOMAIN_INTERVALS = {
+    "drone":      8 * 60,   # 8 min  — the foundation barely moves
+    "texture":    4 * 60,   # 4 min  — breathes noticeably
+    "percussive": 90,       # 90 sec — most volatile
+    "melodic":    5 * 60,   # 5 min  — harmonic shifts are slow
+    "global":     6 * 60,   # 6 min  — tempo + complexity drift
+}
+
+# How often to check if any domain is due (also the micro-nudge cadence)
+TICK_SECONDS = 30
+
+# World events are checked every N full ticks (i.e. every N * TICK_SECONDS)
+EVENT_TICK_EVERY = 6   # every ~3 min
 
 
 # ── State persistence ──────────────────────────────────────────────────────────
@@ -199,79 +218,86 @@ def build_session(genomes: dict, mode: dict):
 
 # ── Evolution cycles ───────────────────────────────────────────────────────────
 
-def evolve(genomes: dict, events: EventManager):
-    # 1. Mutate each domain with its own rate
-    genomes = {k: g.mutate() for k, g in genomes.items()}
-
-    # 2. Find nearest mode, nudge each domain toward its targets
+def evolve_domain(domain: str, genomes: dict):
+    """Mutate a single domain and nudge it toward the nearest mode."""
     mode_name, dist = nearest_mode(genomes)
     mode = MODES[mode_name]
     pull = 0.15 if dist > 1.0 else 0.25
-    for domain, targets in mode.items():
-        if domain in DOMAIN_KEYS and isinstance(targets, dict) and domain in genomes:
-            genomes[domain] = genomes[domain].nudge_toward(targets, pull)
 
-    # 3. World events
-    triggered = events.tick(genomes)
-    event_str = f" [event: {triggered}]" if triggered else ""
-
-    # 4. Build and send
-    lines, mode_name = build_session(genomes, mode)
-    print(f"Evolving... [mode: {mode_name}]{event_str}")
-    send_all(lines)
-
-    # 5. Persist
-    save_all(genomes, events)
-    print("Done.")
-    return genomes, events
+    g = genomes[domain].mutate()
+    targets = mode.get(domain, {})
+    if isinstance(targets, dict) and targets:
+        g = g.nudge_toward(targets, pull)
+    genomes[domain] = g
+    return mode_name
 
 
-def micro_evolve(genomes: dict, events: EventManager):
-    """Nudge gains/filters without restructuring layers or switching banks."""
-    print("Micro-evolving...")
+def tick(genomes: dict, events: EventManager, last_evolved: dict, tick_count: int):
+    """
+    Called every TICK_SECONDS. Checks which domains are due, mutates them,
+    rebuilds patterns if anything changed. Returns updated last_evolved dict.
+    """
+    now     = time.time()
+    changed = []
 
-    # Light nudge on all domains (smaller rate, no big jumps)
-    genomes = {k: g.mutate(rate=0.07, big_jump_prob=0.0) for k, g in genomes.items()}
+    for domain, interval in DOMAIN_INTERVALS.items():
+        if now - last_evolved.get(domain, 0) >= interval:
+            mode_name = evolve_domain(domain, genomes)
+            last_evolved[domain] = now
+            changed.append(domain)
 
+    # World events on their own cadence
+    event_str = ""
+    if tick_count % EVENT_TICK_EVERY == 0:
+        triggered = events.tick(genomes)
+        if triggered:
+            event_str = f" [event: {triggered}]"
+            if triggered not in changed:
+                changed.extend(events.active.keys())
+
+    if changed:
+        mode_name, _ = nearest_mode(genomes)
+        lines, mode_name = build_session(genomes, MODES[mode_name])
+        changed_str = "+".join(changed)
+        print(f"  [{changed_str}] → mode: {mode_name}{event_str}")
+        send_all(lines)
+        save_all(genomes, events)
+
+    return last_evolved
+
+
+def _micro_nudge(genomes: dict, events: EventManager):
+    """Between domain ticks: nudge gains/filters without full rebuild."""
     drn  = genomes["drone"]
     tex  = genomes["texture"]
     perc = genomes["percussive"]
     mel  = genomes["melodic"]
 
-    # Drone: filter sweep + gain
     lpf_lo = drn.map("lpf_lo", 100, 600, integer=True)
     lpf_hi = drn.map("lpf_hi", 600, 3000, integer=True)
     slow_f = drn.map("lpf_speed", 8, 24, integer=True)
     gain   = drn.map("gain", 0.4, 1.0)
     send(f'd1 $ (# gain {gain}) $ (# lpf (slow {slow_f} $ range {lpf_lo} {lpf_hi} perlin))')
 
-    # Texture: gain and speed only — don't swap samples, let them play through
     t_gain = tex.map("gain", 0.3, 0.9)
     t_spd  = tex.map("speed_rand", 0.1, 1.0)
     send(f'd2 $ (# gain {t_gain}) $ (# speed (slow 8 $ range {round(1.0 - t_spd * 0.5, 2)} {round(1.0 + t_spd * 0.5, 2)} perlin))')
 
-    # Drums: vary rhythm within the same bank — don't switch banks
+    from banks import DRUM_BANKS, BANKS
+    bank_pos   = perc.get("bank_pos") * (len(DRUM_BANKS) - 1)
+    bank       = DRUM_BANKS[int(bank_pos)]
+    max_slices = BANKS[bank]["slices"]
     rest_prob  = perc.get("rest_prob")
     slice_bias = perc.get("slice_bias")
     drum_spd   = perc.get("speed")
-    from banks import DRUM_BANKS
-    bank_pos = perc.get("bank_pos") * (len(DRUM_BANKS) - 1)
-    bank     = DRUM_BANKS[int(bank_pos)]
-    from banks import BANKS
-    max_slices = BANKS[bank]["slices"]
     steps      = random.choice([6, 8, 8, 10])
     seq        = P._drum_seq(bank, steps, max_slices, rest_prob, slice_bias)
     speed_str  = "$ slow 2 " if drum_spd < 0.33 else ("$ fast 2 " if drum_spd > 0.66 else "")
     d_gain     = round(random.uniform(0.8, 0.9), 1)
     send(f'd4 $ (# gain {d_gain}) # room 0 {speed_str}$ sound "{seq}"')
 
-    # Chords: gain nudge only — long samples need to play through
     c_gain = mel.map("chord_gain", 0.4, 1.0)
     send(f'd6 $ (# gain {c_gain})')
-
-    save_all(genomes, events)
-    print("Micro-evolve done.")
-    return genomes, events
 
 
 # ── Entry point ────────────────────────────────────────────────────────────────
@@ -280,16 +306,27 @@ if __name__ == "__main__":
     genomes, events = load_all()
 
     if "--once" in sys.argv:
-        evolve(genomes, events)
+        # Force-evolve all domains once and send
+        for domain in genomes:
+            evolve_domain(domain, genomes)
+        lines, mode_name = build_session(genomes, MODES[nearest_mode(genomes)[0]])
+        print(f"Evolving all... [mode: {mode_name}]")
+        send_all(lines)
+        save_all(genomes, events)
 
     elif "--micro" in sys.argv:
-        micro_evolve(genomes, events)
+        _micro_nudge(genomes, events)
+        save_all(genomes, events)
 
     elif "--print" in sys.argv:
         mode_name, dist = nearest_mode(genomes)
         print(f"Nearest mode: {mode_name} (dist: {dist:.3f})")
         if events.active:
             print(f"Active events: {events}")
+        print(f"\nDomain intervals:")
+        for domain, interval in DOMAIN_INTERVALS.items():
+            print(f"  {domain:<12} every {interval//60}m{interval%60:02d}s")
+        print()
         for domain, g in genomes.items():
             print(g)
 
@@ -311,13 +348,14 @@ if __name__ == "__main__":
             sys.exit(1)
 
     else:
-        print(f"eul evolve v2: full every {INTERVAL_MINUTES}min, micro every 30s. Ctrl+C to stop.")
-        genomes, events = evolve(genomes, events)
-        last_full = time.time()
+        intervals_str = ", ".join(f"{d}={v//60}m{v%60:02d}s" for d, v in DOMAIN_INTERVALS.items())
+        print(f"eul evolve v2: independent domain clocks ({intervals_str}). Ctrl+C to stop.")
+        # Stagger initial last_evolved so not everything fires at once on first tick
+        now = time.time()
+        last_evolved = {d: now - (i * TICK_SECONDS) for i, d in enumerate(DOMAIN_INTERVALS)}
+        tick_count = 0
         while True:
-            time.sleep(30)
-            if time.time() - last_full >= INTERVAL_MINUTES * 60:
-                genomes, events = evolve(genomes, events)
-                last_full = time.time()
-            else:
-                genomes, events = micro_evolve(genomes, events)
+            last_evolved = tick(genomes, events, last_evolved, tick_count)
+            _micro_nudge(genomes, events)
+            tick_count += 1
+            time.sleep(TICK_SECONDS)
