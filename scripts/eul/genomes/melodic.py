@@ -13,6 +13,8 @@ class MelodicGenome(GenomePath):
         "chord_slow":       (0.5,  0.0, 1.0, "slow factor, maps to 1-4"),
         "chord_loop_len":   (0.5,  0.0, 1.0, "loopAt value, maps to 1-8 beats"),
         "chord_staccato":   (0.2,  0.0, 1.0, "legato length, 0=short 1=long"),
+        "chord_rhythm":     (0.1,  0.0, 1.0, "step density for non-looping banks, 0=one hit, 1=dense"),
+        "chord_density":    (0.3,  0.0, 1.0, "fast multiplier for non-looping banks: 0=slow, 1=fast 4"),
         "chord_delay_wet":  (0.5,  0.0, 1.0, "delay mix"),
         "chord_room":       (0.7,  0.0, 1.0, "reverb amount"),
         "chord_gain":       (0.7,  0.3, 1.0, "chord gain"),

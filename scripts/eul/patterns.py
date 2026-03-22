@@ -310,7 +310,7 @@ def chords(mel, chord_on, total, glob):
     picks      = [f"{bank_name}:{i}" for i in random.choices(bank.samples, k=num_picks)]
     chord_list = ", ".join(f'"{c}"' for c in picks)
 
-    slow_f    = mel.map("chord_slow", 1, 4, integer=True)
+    slow_f    = mel.map("chord_slow", 8, 24, integer=True) if is_looping else mel.map("chord_slow", 1, 4, integer=True)
     gain      = mel.map("chord_gain", 0.4, 1.0)
     hpf       = random.randint(100, 300)
     pan_slow  = random.randint(4, 10)
@@ -321,22 +321,43 @@ def chords(mel, chord_on, total, glob):
     chaos     = glob.get("randomness")
     begin     = round(random.uniform(0.0, 0.7), 2)
 
-    # Long pads: sustain holds the sample for N seconds regardless of cycle length.
-    # loopAt silences long samples at certain tempos — sustain is the safe alternative.
+    # Long pads: sustain holds sample for N seconds. loopAt silences long samples.
     if is_looping:
-        sustain = random.randint(8, 16)
-        loop_prefix = ''
-        style_str = f' # begin {begin} # sustain {sustain} # legato 1'
-    elif chaos > 0.65:
-        end = round(begin + random.uniform(0.1, 0.4), 2)
-        loop_prefix = ''
-        style_str = f' # begin {begin} # end {min(end, 0.99)} # legato 1'
-    elif staccato < 0.15:
-        loop_prefix = ''
-        style_str = f' # begin {begin} # legato {staccato} # cut 1'
+        sustain    = random.randint(16, 30)
+        speed_pfx  = ''
+        sound_part = f'sound (choose [{chord_list}])'
+        style_str  = f' # begin {begin} # sustain {sustain} # legato 1'
     else:
-        loop_prefix = ''
-        style_str = f' # begin {begin} # legato 1'
+        # Non-looping bank (shxc) — rhythm + speed genes active
+        rhythm  = mel.get("chord_rhythm")
+        density = mel.get("chord_density")
+
+        # Step sequence: 0=single hit, >0=euclidean pattern
+        if rhythm < 0.1:
+            sound_part = f'sound (choose [{chord_list}])'
+        else:
+            steps     = 8
+            hits      = max(1, round(rhythm * steps))
+            positions = set(round(i * steps / hits) % steps for i in range(hits))
+            sample_names = [p.strip('"') for p in chord_list.split(', ')]
+            seq       = " ".join(random.choice(sample_names) if i in positions else '~' for i in range(steps))
+            sound_part = f'sound "{seq}"'
+
+        # Fast multiplier: 0→1x, 0.5→2x, 1→4x
+        if density < 0.33:
+            speed_pfx = ''
+        elif density < 0.66:
+            speed_pfx = 'fast 2 $ '
+        else:
+            speed_pfx = 'fast 4 $ '
+
+        if chaos > 0.65:
+            end = round(begin + random.uniform(0.1, 0.4), 2)
+            style_str = f' # begin {begin} # end {min(end, 0.99)} # legato 1'
+        elif staccato < 0.15:
+            style_str = f' # begin {begin} # legato {staccato} # cut 1'
+        else:
+            style_str = f' # begin {begin} # legato 1'
 
     delay_str = (
         f' # delay {round(delay_wet, 2)}'
@@ -346,7 +367,7 @@ def chords(mel, chord_on, total, glob):
 
     # Gene-driven backbone transforms (tame chord pool)
     transforms = grammar.pick_transforms(chaos, glob.get("complexity"), pool="chords")
-    sound_expr = f'{loop_prefix}slow {slow_f} $ sound (choose [{chord_list}])'
+    sound_expr = f'{speed_pfx}slow {slow_f} $ {sound_part}'
     backbone   = grammar.wrap_pattern(sound_expr, transforms)
 
     return (
