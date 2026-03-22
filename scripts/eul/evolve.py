@@ -286,7 +286,7 @@ def _micro_nudge(genomes: dict, events: EventManager):
     from banks import DRUM_BANKS, BANKS
     bank_pos   = perc.get("bank_pos") * (len(DRUM_BANKS) - 1)
     bank       = DRUM_BANKS[int(bank_pos)]
-    max_slices = BANKS[bank]["slices"]
+    max_slices = BANKS[bank].slices
     rest_prob  = perc.get("rest_prob")
     slice_bias = perc.get("slice_bias")
     drum_spd   = perc.get("speed")

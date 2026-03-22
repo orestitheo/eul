@@ -369,4 +369,4 @@ def voice(mel, chord_on, total):
 
 def _drum_bank_slices(bank_name: str) -> int:
     from banks import BANKS
-    return BANKS[bank_name]["slices"]
+    return BANKS[bank_name].slices
