@@ -1,31 +1,21 @@
 """
-patterns.py — TidalCycles pattern builders driven by gene state.
+patterns.py — TidalCycles pattern builders driven by genome objects.
 
-Every function takes a Genes instance and returns a pattern string.
-No hardcoded random choices — all variation comes from genes.
+Each function takes genome domain instances and returns a TidalCycles pattern string.
+Sample bank constants and interval libraries live here.
+Transform backbone is built via grammar.py.
 """
 
 import random
-import math
+import sys
+import os
 
-# ── Sample banks ──────────────────────────────────────────────────────────────
+sys.path.insert(0, os.path.dirname(__file__))
 
-DRUM_BANKS = {
-    "dungeondrums": 14,
-    "rad":          37,
-    "shxc1":        15,
-}
+import grammar
+from banks import DRUM_BANKS, CHORD_SAMPLES, CHORD_LOOPING, _CHORD_WEIGHTS, VOICE_SAMPLES
 
-CHORD_SAMPLES_WEIGHTED = (
-    [(f"ls:{i}",            1) for i in range(9)] +
-    [(f"akatosh_chord:{i}", 3) for i in range(2)] +
-    [(f"shxc:{i}",          3) for i in range(1)] +
-    [("blackmirror:0", 3), ("discoveryone:0", 3)]
-)
-CHORD_SAMPLES  = [s for s, _ in CHORD_SAMPLES_WEIGHTED]
-_CHORD_WEIGHTS = [w for _, w in CHORD_SAMPLES_WEIGHTED]
-
-VOICE_SAMPLES = ["madonna:0", "discoveryone:0", "akatosh_voice:0"]
+# ── Interval libraries ─────────────────────────────────────────────────────────
 
 MELODIC_INTERVALS = [
     "0 7 0 7",
@@ -57,88 +47,80 @@ VOICE_INTERVALS = [
     "0 12 7 0",
 ]
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _euclidean_hits(density_gene, steps=8):
-    """Map density gene [0,1] to k hits in `steps` steps."""
-    k = max(1, round(density_gene * steps))
-    return k
+    return max(1, round(density_gene * steps))
+
 
 def _drum_seq(bank, slices, max_slices, rest_prob, slice_bias):
-    """
-    Build a drum sequence of `slices` steps from `bank`.
-    slice_bias [0,1] favours low vs high slice indices.
-    rest_prob [0,1] chance of ~ per step.
-    """
+    """Build a drum sequence of `slices` steps from `bank`."""
     parts = []
     for _ in range(slices):
         if random.random() < rest_prob:
             parts.append("~")
         else:
-            # Bias slice selection toward low or high end of the bank
             center = round(slice_bias * (max_slices - 1))
             spread = max(1, max_slices // 3)
-            idx = int(random.gauss(center, spread))
-            idx = max(0, min(max_slices - 1, idx))
+            idx    = int(random.gauss(center, spread))
+            idx    = max(0, min(max_slices - 1, idx))
             parts.append(f"{bank}:{idx}")
-    # Avoid all rests
     if all(p == "~" for p in parts):
         parts[0] = f"{bank}:0"
     return " ".join(parts)
 
-def _every_transforms(chaos, complexity):
-    """Return a chain of every/jux transforms based on chaos and complexity genes."""
-    parts = []
-    n_transforms = round(complexity * 3)  # 0-3 transforms
-    if n_transforms >= 1:
-        interval = max(2, round(2 + (1 - chaos) * 6))  # 2-8
-        parts.append(f"every {interval} rev")
-    if n_transforms >= 2 and chaos > 0.4:
-        interval = max(3, round(3 + (1 - chaos) * 5))
-        parts.append(f"every {interval} (fast 2)")
-    if n_transforms >= 3 and chaos > 0.6:
-        parts.append(f"sometimes (fast 2)")
-    return parts
 
-# ── Pattern builders ──────────────────────────────────────────────────────────
+# ── Pattern builders ───────────────────────────────────────────────────────────
 
-def tempo(g):
-    center = g.map("tempo_center", 0.4, 1.2)
-    rng    = g.map("tempo_range", 0.05, 0.5)
+def tempo(glob):
+    """Global tempo pattern. glob: GlobalGenome."""
+    center = glob.map("tempo_center", 0.4, 1.2)
+    rng    = glob.map("tempo_range", 0.05, 0.5)
     lo     = round(max(0.3, center - rng / 2), 2)
     hi     = round(min(1.6, center + rng / 2), 2)
-    slow_f = g.map("tempo_drift_speed", 16, 48, integer=True)
+    slow_f = glob.map("tempo_drift_speed", 16, 48, integer=True)
     return f"cps (slow {slow_f} $ range {lo} {hi} perlin)"
 
 
-def drone(g):
-    gain    = g.map("drone_gain", 0.4, 1.0)
-    lpf_lo  = g.map("drone_lpf_lo", 100, 600, integer=True)
-    lpf_hi  = g.map("drone_lpf_hi", 600, 3000, integer=True)
-    slow_f  = g.map("drone_lpf_speed", 8, 24, integer=True)
-    room    = g.map("drone_room", 0.5, 1.0)
+def drone(drn):
+    """Always-on foundation. drn: DroneGenome."""
+    gain    = drn.map("gain", 0.4, 1.0)
+    lpf_lo  = drn.map("lpf_lo", 100, 600, integer=True)
+    lpf_hi  = drn.map("lpf_hi", 600, 3000, integer=True)
+    slow_f  = drn.map("lpf_speed", 8, 24, integer=True)
+    room    = drn.map("room", 0.5, 1.0)
+    pitch   = drn.map("pitch", -7, 7, integer=True)
+    begin   = drn.map("begin", 0.0, 0.6)
     sample  = random.randint(0, 2)
-    begin   = round(random.uniform(0.0, 0.6), 2)
+    pitch_str = f" # note {pitch}" if pitch != 0 else ""
     return (
         f'd1 $ sound "drone:{sample}"'
         f' # begin {begin}'
         f' # gain {gain}'
         f' # lpf (slow {slow_f} $ range {lpf_lo} {lpf_hi} perlin)'
         f' # room {room}'
+        f'{pitch_str}'
     )
 
 
-def texture(g):
-    density   = g.get("texture_density")
+def texture(tex, glob):
+    """Atmospheric layer. tex: TextureGenome, glob: GlobalGenome."""
+    density   = tex.get("density")
     on        = max(2, round(density * 7))
     total     = on + random.randint(1, 3)
-    slow_f    = g.map("texture_slow", 1, 4, integer=True)
-    gain      = g.map("texture_gain", 0.3, 0.9)
-    spd_rand  = g.map("texture_speed_rand", 0.1, 1.0)
-    num       = random.choice([1, 1, 2])
-    picks     = random.sample(range(5), min(num, 5))
+    slow_f    = tex.map("slow", 1, 4, integer=True)
+    gain      = tex.map("gain", 0.3, 0.9)
+    spd_rand  = tex.map("speed_rand", 0.1, 1.0)
+    room      = tex.map("room", 0.0, 1.0)
+    # Sample bias: lean toward a region of the texture bank
+    bias      = tex.get("sample_bias")
+    center    = round(bias * 4)
+    picks     = sorted(set([
+        max(0, min(4, round(random.gauss(center, 1.5))))
+        for _ in range(random.choice([1, 1, 2]))
+    ]))
     tex_seq   = " ".join(f"texture:{i}" for i in picks)
-    chaos     = g.get("drum_chaos")
+    chaos     = glob.get("randomness")
     jux_int   = max(3, round(3 + (1 - chaos) * 5))
     begin     = round(random.uniform(0.0, 0.7), 2)
     return (
@@ -148,14 +130,15 @@ def texture(g):
         f' # begin {begin}'
         f' # gain {gain}'
         f' # speed (slow 8 $ range {round(1.0 - spd_rand * 0.5, 2)} {round(1.0 + spd_rand * 0.5, 2)} perlin)'
-        f' # room {g.map("chord_room", 0.4, 0.9)}'
+        f' # room {room}'
     )
 
 
-def melodic(g, chord_on, total):
-    slow_f  = g.map("melodic_slow", 2, 5, integer=True)
-    gain    = g.map("melodic_gain", 0.5, 1.0)
-    idx     = g.map("melodic_interval", 0, len(MELODIC_INTERVALS) - 1, integer=True)
+def melodic(mel, chord_on, total):
+    """T99 melodic layer (d3). mel: MelodicGenome."""
+    slow_f  = mel.map("t99_slow", 2, 5, integer=True)
+    gain    = mel.map("t99_gain", 0.5, 1.0)
+    idx     = mel.map("t99_interval", 0, len(MELODIC_INTERVALS) - 1, integer=True)
     notes   = MELODIC_INTERVALS[idx]
     dt      = random.choice([0.375, 0.5])
     pan_spd = random.randint(6, 12)
@@ -165,43 +148,37 @@ def melodic(g, chord_on, total):
         f' # legato 1'
         f' # note "{notes}"'
         f' # gain {gain}'
-        f' # room {g.map("drone_room", 0.7, 1.0)}'
+        f' # room {mel.map("chord_room", 0.7, 1.0)}'
         f' # delay 0.5 # delaytime {dt} # delayfeedback 0.4'
         f' # pan (slow {pan_spd} $ range 0.2 0.8 sine)'
     )
 
 
-def drums(g, mode_flags):
-    total      = g.map("drum_cycle_len", 6, 12, integer=True)
-    drum_frac  = g.get("drum_window_frac")
+def drums(perc, glob):
+    """Percussion layer (d4). perc: PercussiveGenome, glob: GlobalGenome."""
+    total      = perc.map("cycle_len", 6, 12, integer=True)
+    drum_frac  = perc.get("window_frac")
     drum_on    = max(2, round(total * drum_frac))
-    rest_prob  = g.get("drum_rest_prob")
-    slice_bias = g.get("drum_slice_bias")
-    chaos      = g.get("drum_chaos")
-    complexity = g.get("complexity")
-    drum_spd   = g.get("drum_speed")
-    poly       = g.get("drum_polyrhythm")
+    rest_prob  = perc.get("rest_prob")
+    slice_bias = perc.get("slice_bias")
+    chaos      = perc.get("chaos")
+    complexity = glob.get("complexity")
+    drum_spd   = perc.get("speed")
+    poly       = perc.get("polyrhythm")
     gain       = round(random.uniform(0.8, 0.9), 1)
 
-    # Bank selection drifts via gene — no hard random jump
-    bank_names = list(DRUM_BANKS.keys())  # [dungeondrums, rad, shxc1]
-    bank_idx   = g.map("drum_bank_idx", 0, len(bank_names) - 1, integer=True)
-    bank       = bank_names[bank_idx]
-    g.state["drum_bank"] = bank
-    max_slices = DRUM_BANKS[bank]
+    bank_idx  = perc.map("bank_idx", 0, len(DRUM_BANKS) - 1, integer=True)
+    bank      = DRUM_BANKS[bank_idx]
+    max_slices = _drum_bank_slices(bank)
 
-    # Occasionally blend slices from a second bank (~20% when blend gene is high)
-    blend      = g.get("drum_blend")
+    blend      = perc.get("blend")
     blend_bank = None
     if blend > 0.5 and random.random() < 0.4:
-        other_banks = [b for b in bank_names if b != bank]
-        blend_bank  = random.choice(other_banks)
+        other = [b for b in DRUM_BANKS if b != bank]
+        blend_bank = random.choice(other)
 
-    # Build sequence — optionally blend slices from a second bank
-    k     = _euclidean_hits(g.get("drum_density"))
     if blend_bank:
-        blend_slices = DRUM_BANKS[blend_bank]
-        # Mix: each step randomly draws from primary or blend bank
+        blend_slices = _drum_bank_slices(blend_bank)
         steps = []
         for _ in range(8):
             if random.random() < rest_prob:
@@ -217,68 +194,64 @@ def drums(g, mode_flags):
         seq = " ".join(steps)
     else:
         seq = _drum_seq(bank, 8, max_slices, rest_prob, slice_bias)
-    transforms = _every_transforms(chaos, complexity)
-    transform_str = " $ ".join(transforms) if transforms else ""
 
-    # Speed: half-time / normal / double-time from gene
+    # Gene-driven backbone transforms
+    transforms = grammar.pick_transforms(chaos, complexity, pool="drums")
+    sound_expr = f'sound "{seq}"'
+
+    # Speed wrapping
     if drum_spd < 0.33:
-        speed_wrap = "slow 2 $ "
+        sound_expr = f"slow 2 $ {sound_expr}"
     elif drum_spd > 0.66:
-        speed_wrap = "fast 2 $ "
-    else:
-        speed_wrap = ""
+        sound_expr = f"fast 2 $ {sound_expr}"
 
     # Polyrhythm layer
-    poly_str = ""
     if poly > 0.5:
         seq2 = _drum_seq(bank, 5, max_slices, rest_prob, slice_bias)
-        poly_str = f', slow 1.5 $ sound "{seq2}"'
+        sound_expr = f'stack [{sound_expr}, slow 1.5 $ sound "{seq2}"]'
 
-    if poly_str:
-        sound_str = f'stack [sound "{seq}"{poly_str}]'
-    else:
-        sound_str = f'{speed_wrap}sound "{seq}"'
-
+    backbone = grammar.wrap_pattern(sound_expr, transforms)
     dt = random.choice([0.25, 0.375, 0.5])
-    delay_str = (
-        f' # delay (sometimes (const 0.5) 0)'
-        f' # delaytime (slow 3 $ range {dt} {round(dt*1.5, 3)} sine)'
-        f' # delayfeedback 0.35'
-        f' # pan (slow 5 $ range 0.1 0.9 sine)'
-    )
 
-    transform_prefix = f' $ {transform_str}' if transform_str else ''
     return (
         f'd4 $ whenmod {total} {drum_on} id'
-        f'{transform_prefix} $ {sound_str}'
+        f' $ {backbone}'
         f' # gain {gain}'
         f' # room 0'
         f' # speed (slow 6 $ range 0.85 1.15 perlin)'
         f' # pan (range 0.3 0.7 rand)'
-        f'{delay_str}'
+        f' # delay (sometimes (const 0.5) 0)'
+        f' # delaytime (slow 3 $ range {dt} {round(dt*1.5, 3)} sine)'
+        f' # delayfeedback 0.35'
     )
 
 
-def chords(g, chord_on, total):
+def chords(mel, chord_on, total, glob):
+    """Chord layer (d6). mel: MelodicGenome, glob: GlobalGenome."""
     num_picks  = random.randint(2, 5)
-    picks      = random.choices(CHORD_SAMPLES, weights=_CHORD_WEIGHTS, k=num_picks)
+    picks_idx  = random.choices(range(len(CHORD_SAMPLES)), weights=_CHORD_WEIGHTS, k=num_picks)
+    # Use the first pick to determine if we're in a looping bank
+    # (all picks in a given evolve tend to come from similar banks)
+    is_looping = CHORD_LOOPING[picks_idx[0]]
+    picks      = [CHORD_SAMPLES[i] for i in picks_idx]
     chord_list = ", ".join(f'"{c}"' for c in picks)
-    slow_f     = g.map("chord_slow", 1, 4, integer=True)
-    gain       = g.map("chord_gain", 0.4, 1.0)
-    hpf        = random.randint(100, 300)
-    pan_slow   = random.randint(4, 10)
-    room       = g.map("chord_room", 0.0, 1.0)
-    loop_at    = g.map("chord_loop_len", 1, 8, integer=True)
-    staccato   = g.map("chord_staccato", 0.05, 0.5)
-    delay_wet  = g.map("chord_delay_wet", 0.0, 1.0)
-    jux_int    = max(3, round(3 + (1 - g.get("drum_chaos")) * 4))
 
-    # Random start point — each session begins at a different place in the sample
-    begin = round(random.uniform(0.0, 0.7), 2)
+    slow_f    = mel.map("chord_slow", 1, 4, integer=True)
+    gain      = mel.map("chord_gain", 0.4, 1.0)
+    hpf       = random.randint(100, 300)
+    pan_slow  = random.randint(4, 10)
+    room      = mel.map("chord_room", 0.0, 1.0)
+    loop_at   = mel.map("chord_loop_len", 1, 8, integer=True)
+    staccato  = mel.map("chord_staccato", 0.05, 0.5)
+    delay_wet = mel.map("chord_delay_wet", 0.0, 1.0)
+    chaos     = glob.get("randomness")
+    begin     = round(random.uniform(0.0, 0.7), 2)
 
-    # Style determined by genes: high chaos → glitch slice, low staccato → staccato, else looped
-    chaos = g.get("drum_chaos")
-    if chaos > 0.65:
+    # Looping banks: always loopAt + legato=1, never staccato or glitch slice
+    if is_looping:
+        style_str = f' # begin {begin} # loopAt {loop_at} # legato 1'
+    elif chaos > 0.65:
+        # Glitch slice: randomize begin/end window
         end = round(begin + random.uniform(0.1, 0.4), 2)
         style_str = f' # begin {begin} # end {min(end, 0.99)} # legato 1 # loopAt {loop_at}'
     elif staccato < 0.15:
@@ -292,10 +265,14 @@ def chords(g, chord_on, total):
         f' # delayfeedback {round(random.uniform(0.2, 0.5), 1)}'
     ) if delay_wet > 0.2 else ""
 
+    # Gene-driven backbone transforms (tame chord pool)
+    transforms = grammar.pick_transforms(chaos, glob.get("complexity"), pool="chords")
+    sound_expr = f'slow {slow_f} $ sound (choose [{chord_list}])'
+    backbone   = grammar.wrap_pattern(sound_expr, transforms)
+
     return (
         f'd6 $ whenmod {total} {chord_on} id'
-        f' $ every {jux_int} (jux rev)'
-        f' $ slow {slow_f} $ sound (choose [{chord_list}])'
+        f' $ {backbone}'
         f'{style_str}'
         f' # gain {gain}'
         f' # hpf {hpf}'
@@ -305,16 +282,17 @@ def chords(g, chord_on, total):
     )
 
 
-def voice(g, chord_on, total):
-    sample     = random.choice(VOICE_SAMPLES)
-    slow_f     = g.map("voice_slow", 3, 6, integer=True)
-    gain       = g.map("voice_gain", 0.3, 0.7)
-    stretch    = g.map("voice_stretch", 0.4, 1.0)
-    room       = g.map("voice_room", 0.6, 1.0)
-    idx        = g.map("melodic_interval", 0, len(VOICE_INTERVALS) - 1, integer=True)
-    notes      = VOICE_INTERVALS[idx % len(VOICE_INTERVALS)]
-    dt         = random.choice([0.375, 0.5, 0.75])
-    pan_spd    = random.randint(8, 16)
+def voice(mel, chord_on, total):
+    """Voice layer (d5). mel: MelodicGenome."""
+    sample  = random.choice(VOICE_SAMPLES)
+    slow_f  = mel.map("voice_slow", 3, 6, integer=True)
+    gain    = mel.map("voice_gain", 0.3, 0.7)
+    stretch = mel.map("voice_stretch", 0.4, 1.0)
+    room    = mel.map("voice_room", 0.6, 1.0)
+    idx     = mel.map("voice_interval", 0, len(VOICE_INTERVALS) - 1, integer=True)
+    notes   = VOICE_INTERVALS[idx % len(VOICE_INTERVALS)]
+    dt      = random.choice([0.375, 0.5, 0.75])
+    pan_spd = random.randint(8, 16)
     return (
         f'd5 $ whenmod {total} {chord_on} id'
         f' $ slow {slow_f} $ sound "{sample}"'
@@ -326,3 +304,8 @@ def voice(g, chord_on, total):
         f' # delay 0.7 # delaytime {dt} # delayfeedback 0.5'
         f' # pan (slow {pan_spd} $ range 0.2 0.8 sine)'
     )
+
+
+def _drum_bank_slices(bank_name: str) -> int:
+    from banks import BANKS
+    return BANKS[bank_name]["slices"]
