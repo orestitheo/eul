@@ -188,14 +188,56 @@ def pick_drums_and_chords(mode):
 
     drum_gain = round(random.uniform(0.7, 0.9) if mode == "drums" else random.uniform(0.6, 0.8), 1)
     drum_every_rev = random.randint(3, 6)
-    drum_every_fast = random.randint(6, 10)
     dt = random.choice([0.25, 0.375, 0.5])
     delay_str = f' # delay (sometimes (const 0.5) 0) # delaytime (slow 3 $ range {dt} {round(dt*1.5, 3)} sine) # delayfeedback 0.35 # pan (slow 5 $ range 0.1 0.9 sine)'
+
+    # Pick a drum style each session
+    drum_style = random.choice(["straight", "straight", "halftime", "polyrhythm", "sparse", "chaotic"])
+
+    if drum_style == "straight":
+        # Normal 8-step sequence, occasional fast
+        drum_every_fast = random.randint(6, 10)
+        pattern_str = (
+            f' $ every {drum_every_rev} rev'
+            f' $ every {drum_every_fast} (fast 2)'
+            f' $ sound "{drum_seq}"'
+        )
+    elif drum_style == "halftime":
+        # Slow and heavy
+        pattern_str = (
+            f' $ every {drum_every_rev} rev'
+            f' $ slow 2 $ sound "{drum_seq}"'
+        )
+    elif drum_style == "polyrhythm":
+        # Two different sequences overlaid at different speeds
+        slices2 = [random.randint(0, max_slices - 1) for _ in range(5)]
+        seq2 = " ".join(f"{drum_bank}:{i}" for i in slices2)
+        pattern_str = (
+            f' $ every {drum_every_rev} rev'
+            f' $ stack [sound "{drum_seq}", slow 1.5 $ sound "{seq2}"]'
+        )
+    elif drum_style == "sparse":
+        # Lots of rests, unpredictable hits
+        sparse_seq = " ".join(
+            f"{drum_bank}:{random.randint(0, max_slices-1)}" if random.random() > 0.5 else "~"
+            for _ in range(8)
+        )
+        pattern_str = (
+            f' $ every {drum_every_rev} rev'
+            f' $ sound "{sparse_seq}"'
+        )
+    elif drum_style == "chaotic":
+        # Fast with random speed variations
+        pattern_str = (
+            f' $ every {random.randint(2,4)} rev'
+            f' $ every {random.randint(3,5)} (fast {random.choice([2,3])})'
+            f' $ sometimes (fast {random.choice([2,3])})'
+            f' $ sound "{drum_seq}"'
+        )
+
     drums = (
         f'd4 $ whenmod {total} {drum_on} id'
-        f' $ every {drum_every_rev} rev'
-        f' $ every {drum_every_fast} (fast 2)'
-        f' $ sound "{drum_seq}"'
+        f'{pattern_str}'
         f' # gain {drum_gain}'
         f' # room 0'
         f' # speed (range 0.8 1.2 rand)'
