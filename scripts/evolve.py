@@ -68,8 +68,9 @@ def pick_drone(mode):
     room = round(random.uniform(0.7, 1.0), 1)
     # Drone mode: louder and more present
     gain = round(random.uniform(0.8, 1.0), 1) if mode == "drone" else round(random.uniform(0.6, 0.8), 1)
+    sample = random.randint(0, 2)
     return (
-        f'd1 $ sound "drone:0"'
+        f'd1 $ sound "drone:{sample}"'
         f' # gain {gain}'
         f' # lpf (slow {slow_factor} $ range {lpf_lo} {lpf_hi} perlin)'
         f' # room {room}'
