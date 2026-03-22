@@ -100,25 +100,60 @@ def pick_texture(mode):
     )
 
 def pick_t99(mode, chord_on, total):
-    # Coin flip — more likely in chords/drone mode
     if mode not in ("chords", "drone", "balanced") and random.random() < 0.5:
         return "d3 silence"
-    # Play seconds and fifths: notes 0, 2, 7 in a slow sequence
-    notes = random.choice([
-        "0 2 7 2",
-        "0 7 2 7",
-        "0 2 0 7",
-        "7 0 2 0",
-    ])
+
     slow_factor = random.choice([3, 4, 6])
     gain = round(random.uniform(0.7, 0.9), 1)
     loop_at = random.choice([2, 4, 4, 8])
+
+    # Melodic patterns using intervals (semitones)
+    # Fifths=7, fourths=5, minor third=3, major third=4, octave=12
+    melodic_patterns = [
+        "0 7 0 7",        # root + fifth alternating
+        "0 7 12 7",       # root fifth octave fifth
+        "0 3 7 3",        # minor arpeggio
+        "0 4 7 4",        # major arpeggio
+        "0 5 0 7",        # fourth and fifth
+        "0 7 0 12",       # root fifth octave
+        "0 3 5 7",        # minor scale fragment
+        "12 7 3 0",       # descending minor
+        "0 4 7 12",       # major arpeggio ascending
+        "7 12 7 0",       # fifth octave descent
+    ]
+
+    # Chord stacks — play multiple notes simultaneously using note patterns with chords
+    chord_patterns = [
+        "[0,7]",          # power chord (root+fifth)
+        "[0,7,12]",       # root+fifth+octave
+        "[0,3,7]",        # minor triad
+        "[0,4,7]",        # major triad
+        "[0,5,7]",        # sus4
+        "[0,7] [0,5] [0,7] [0,3]",   # chord sequence
+        "[0,4,7] [0,3,7] [0,5,7] [0,7]",  # chord progression
+    ]
+
+    style = random.choice(["melodic", "melodic", "chords", "slow_melody"])
+
+    if style == "melodic":
+        notes = random.choice(melodic_patterns)
+        note_str = f' # note "{notes}"'
+    elif style == "chords":
+        notes = random.choice(chord_patterns)
+        note_str = f' # note "{notes}"'
+    elif style == "slow_melody":
+        # Very slow, just 2 notes
+        n1, n2 = random.choice([(0, 7), (0, 12), (7, 12), (0, 5), (3, 7)])
+        notes = f"{n1} {n2}"
+        slow_factor = random.choice([6, 8, 12])
+        note_str = f' # note "{notes}"'
+
     return (
         f'd3 $ whenmod {total} {chord_on} id'
         f' $ slow {slow_factor} $ sound "t99:0"'
         f' # loopAt {loop_at}'
         f' # legato 1'
-        f' # note "{notes}"'
+        f'{note_str}'
         f' # gain {gain}'
         f' # room {round(random.uniform(0.7, 0.95), 2)}'
         f' # delay 0.5 # delaytime {random.choice([0.375, 0.5])} # delayfeedback 0.4'
