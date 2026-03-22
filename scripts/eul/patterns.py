@@ -167,33 +167,33 @@ def drums(perc, glob):
     poly       = perc.get("polyrhythm")
     gain       = round(random.uniform(0.8, 0.9), 1)
 
-    bank_idx  = perc.map("bank_idx", 0, len(DRUM_BANKS) - 1, integer=True)
-    bank      = DRUM_BANKS[bank_idx]
+    bank_idx   = perc.map("bank_idx", 0, len(DRUM_BANKS) - 1, integer=True)
+    bank       = DRUM_BANKS[bank_idx]
     max_slices = _drum_bank_slices(bank)
 
-    blend      = perc.get("blend")
-    blend_bank = None
-    if blend > 0.5 and random.random() < 0.4:
-        other = [b for b in DRUM_BANKS if b != bank]
-        blend_bank = random.choice(other)
+    # Secondary bank drifts independently — always present, blend controls the mix ratio
+    blend            = perc.get("blend")
+    blend_bank_idx   = perc.map("blend_bank_idx", 0, len(DRUM_BANKS) - 1, integer=True)
+    blend_bank       = DRUM_BANKS[blend_bank_idx]
+    if blend_bank == bank:
+        # If genes converge to same bank, pick the next one
+        blend_bank = DRUM_BANKS[(blend_bank_idx + 1) % len(DRUM_BANKS)]
+    blend_slices = _drum_bank_slices(blend_bank)
 
-    if blend_bank:
-        blend_slices = _drum_bank_slices(blend_bank)
-        steps = []
-        for _ in range(8):
-            if random.random() < rest_prob:
-                steps.append("~")
-            elif random.random() < 0.3:
-                idx = max(0, min(blend_slices - 1, round(random.gauss(slice_bias * (blend_slices - 1), blend_slices // 3))))
-                steps.append(f"{blend_bank}:{idx}")
-            else:
-                idx = max(0, min(max_slices - 1, round(random.gauss(slice_bias * (max_slices - 1), max_slices // 3))))
-                steps.append(f"{bank}:{idx}")
-        if all(s == "~" for s in steps):
-            steps[0] = f"{bank}:0"
-        seq = " ".join(steps)
-    else:
-        seq = _drum_seq(bank, 8, max_slices, rest_prob, slice_bias)
+    # Build sequence: each step draws from primary or secondary based on blend ratio
+    steps = []
+    for _ in range(8):
+        if random.random() < rest_prob:
+            steps.append("~")
+        elif random.random() < blend:
+            idx = max(0, min(blend_slices - 1, round(random.gauss(slice_bias * (blend_slices - 1), blend_slices // 3))))
+            steps.append(f"{blend_bank}:{idx}")
+        else:
+            idx = max(0, min(max_slices - 1, round(random.gauss(slice_bias * (max_slices - 1), max_slices // 3))))
+            steps.append(f"{bank}:{idx}")
+    if all(s == "~" for s in steps):
+        steps[0] = f"{bank}:0"
+    seq = " ".join(steps)
 
     # Gene-driven backbone transforms
     transforms = grammar.pick_transforms(chaos, complexity, pool="drums")
