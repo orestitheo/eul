@@ -72,11 +72,13 @@ GENE_DEFS = {
 
 
 class Genes:
-    def __init__(self, values=None):
+    def __init__(self, values=None, state=None):
         if values:
             self.values = values
         else:
             self.values = {k: v[0] for k, v in GENE_DEFS.items()}
+        # Non-gene session state (not mutated, just tracked)
+        self.state = state or {}
 
     def get(self, name):
         return self.values[name]
@@ -97,7 +99,7 @@ class Genes:
                 # Small nudge — exploit
                 delta = random.gauss(0, rate)
             new[name] = max(lo, min(hi, val + delta))
-        return Genes(new)
+        return Genes(new, self.state)
 
     def nudge_toward(self, target_values, strength=0.2):
         """
@@ -112,12 +114,12 @@ class Genes:
             _, lo, hi, _ = GENE_DEFS[name]
             current = new[name]
             new[name] = max(lo, min(hi, current + strength * (target - current)))
-        return Genes(new)
+        return Genes(new, self.state)
 
     def save(self, path=STATE_FILE):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w") as f:
-            json.dump(self.values, f, indent=2)
+            json.dump({"genes": self.values, "state": self.state}, f, indent=2)
 
     @classmethod
     def load(cls, path=STATE_FILE):
@@ -126,10 +128,14 @@ class Genes:
             return cls()
         with open(path) as f:
             saved = json.load(f)
-        # Fill in any new genes not in saved state
+        # Support old format (flat dict of genes)
+        if "genes" in saved:
+            raw, state = saved["genes"], saved.get("state", {})
+        else:
+            raw, state = saved, {}
         values = {k: v[0] for k, v in GENE_DEFS.items()}
-        values.update({k: v for k, v in saved.items() if k in GENE_DEFS})
-        return cls(values)
+        values.update({k: v for k, v in raw.items() if k in GENE_DEFS})
+        return cls(values, state)
 
     def map(self, name, lo, hi, integer=False):
         """Map gene [0,1] to [lo, hi]. Optionally round to int."""

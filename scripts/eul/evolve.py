@@ -25,7 +25,7 @@ from modes   import MODES, MODE_NAMES, nearest_mode
 from send    import send, send_all
 import patterns as P
 
-INTERVAL_MINUTES = 6
+INTERVAL_MINUTES = 3
 
 
 def build_session(g):
@@ -118,14 +118,19 @@ def micro_evolve(g):
     t_spd  = g.map("texture_speed_rand", 0.1, 1.0)
     send(f'd2 $ (# gain {t_gain}) $ (# speed (slow 8 $ range {round(1.0 - t_spd * 0.5, 2)} {round(1.0 + t_spd * 0.5, 2)} perlin))')
 
-    # Drums: new sequence from genes (short percussive hits, fine to retrigger)
+    # Drums: vary rhythm within the same bank — don't switch banks
+    # Nudge density, rest prob, speed slightly via gene drift
     rest_prob  = g.get("drum_rest_prob")
     slice_bias = g.get("drum_slice_bias")
-    bank       = random.choice(list(P.DRUM_BANKS.keys()))
+    drum_spd   = g.get("drum_speed")
+    # Keep whichever bank is loaded; just vary the sequence and timing
+    bank       = g.state.get("drum_bank", random.choice(list(P.DRUM_BANKS.keys())))
     max_slices = P.DRUM_BANKS[bank]
-    seq        = P._drum_seq(bank, 8, max_slices, rest_prob, slice_bias)
+    steps      = random.choice([6, 8, 8, 10])  # vary step count = time signature feel
+    seq        = P._drum_seq(bank, steps, max_slices, rest_prob, slice_bias)
+    speed_str  = "$ slow 2 " if drum_spd < 0.33 else ("$ fast 2 " if drum_spd > 0.66 else "")
     d_gain     = round(random.uniform(0.8, 0.9), 1)
-    send(f'd4 $ (# gain {d_gain}) $ sound "{seq}"')
+    send(f'd4 $ (# gain {d_gain}) # room 0 {speed_str}$ sound "{seq}"')
 
     # Chords: nudge gain only — long samples need to play through, don't swap
     c_gain = g.map("chord_gain", 0.4, 1.0)
@@ -148,7 +153,7 @@ if __name__ == "__main__":
         print(f"Current genes (nearest mode: {mode_name}, dist: {dist:.3f})")
         print(g)
     else:
-        print(f"eul evolve: full every {INTERVAL_MINUTES}min, micro every 30s. Ctrl+C to stop.")
+        print(f"eul evolve: full every {INTERVAL_MINUTES}min, micro every 30s. Ctrl+C to stop."  )
         g = evolve(g)
         last_full = time.time()
         while True:

@@ -184,19 +184,20 @@ def drums(g, mode_flags):
     gain       = round(random.uniform(0.8, 0.9), 1)
 
     bank       = random.choice(list(DRUM_BANKS.keys()))
+    g.state["drum_bank"] = bank  # remember for micro-evolve
     max_slices = DRUM_BANKS[bank]
 
     # Build sequence from genes rather than hardcoded slice lists
     k     = _euclidean_hits(g.get("drum_density"))
     seq   = _drum_seq(bank, 8, max_slices, rest_prob, slice_bias)
     transforms = _every_transforms(chaos, complexity)
-    transform_str = " $ ".join(f"$ {t}" for t in transforms) if transforms else ""
+    transform_str = " $ ".join(transforms) if transforms else ""
 
     # Speed: half-time / normal / double-time from gene
     if drum_spd < 0.33:
-        speed_wrap = "$ slow 2 "
+        speed_wrap = "slow 2 $ "
     elif drum_spd > 0.66:
-        speed_wrap = "$ fast 2 "
+        speed_wrap = "fast 2 $ "
     else:
         speed_wrap = ""
 
@@ -207,9 +208,9 @@ def drums(g, mode_flags):
         poly_str = f', slow 1.5 $ sound "{seq2}"'
 
     if poly_str:
-        sound_str = f'$ stack [sound "{seq}"{poly_str}]'
+        sound_str = f'stack [sound "{seq}"{poly_str}]'
     else:
-        sound_str = f'{speed_wrap}$ sound "{seq}"'
+        sound_str = f'{speed_wrap}sound "{seq}"'
 
     dt = random.choice([0.25, 0.375, 0.5])
     delay_str = (
@@ -219,9 +220,10 @@ def drums(g, mode_flags):
         f' # pan (slow 5 $ range 0.1 0.9 sine)'
     )
 
+    transform_prefix = f' $ {transform_str}' if transform_str else ''
     return (
         f'd4 $ whenmod {total} {drum_on} id'
-        f' {transform_str} {sound_str}'
+        f'{transform_prefix} $ {sound_str}'
         f' # gain {gain}'
         f' # room 0'
         f' # speed (slow 6 $ range 0.85 1.15 perlin)'
