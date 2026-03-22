@@ -146,8 +146,7 @@ def cmd_play(bank):
 
 def cmd_stop(bank):
     if bank == "all":
-        for info in active.values():
-            stop_channel(info["ch"])
+        send("hush")
         active.clear()
         print("  stopped all")
         return
@@ -218,6 +217,8 @@ def main():
     print("  report             print gain table")
     print("  q                  quit")
     print("="*45 + "\n")
+    print_banks()
+    print()
 
     while True:
         try:
