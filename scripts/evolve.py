@@ -190,6 +190,13 @@ def pick_drums_and_chords(mode):
     elif chord_style == "reverse":
         style_str = f' # loopAt {random.choice([2,4])} # legato 1 # speed -1'
 
+    chord_delay = (
+        f' # delay {round(random.uniform(0.3, 0.7), 1)}'
+        f' # delaytime {random.choice([0.25, 0.375, 0.5, 0.75])}'
+        f' # delayfeedback {round(random.uniform(0.2, 0.5), 1)}'
+    ) if random.random() < 0.7 else ""
+    chord_room = round(random.uniform(0.7, 1.0), 1) if random.random() < 0.6 else round(random.uniform(0.0, 0.3), 1)
+
     chords = (
         f'd6 $ whenmod {total} {chord_on} id'
         f' $ every {random.randint(3,6)} (jux rev)'
@@ -198,6 +205,7 @@ def pick_drums_and_chords(mode):
         f' # gain {chord_gain}'
         f' # hpf {chord_hpf}'
         f' # room {chord_room}'
+        f'{chord_delay}'
         f' # pan (slow {pan_slow} $ range 0.2 0.8 sine)'
     )
 
