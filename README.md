@@ -13,7 +13,7 @@ TidalCycles (patterns) → SuperCollider/SuperDirt (audio engine) → JACK (rout
 - **JACK** — virtual audio cable between SuperCollider and DarkIce (headless, no soundcard needed)
 - **DarkIce** — encodes the JACK audio to MP3 192kbps
 - **Icecast** — serves it as an HTTP stream
-- **scripts/eul/** — genetic self-evolving composer. Mutates every 3 minutes (full) and every 30 seconds (micro-tweaks).
+- **scripts/eul/** — genetic self-evolving composer. Each domain evolves on its own clock.
 
 ---
 
@@ -22,11 +22,12 @@ TidalCycles (patterns) → SuperCollider/SuperDirt (audio engine) → JACK (rout
 | Script | Usage | What it does |
 |--------|-------|-------------|
 | `./scripts/status.sh` | Anytime | Checks all processes, stream, JACK routing, loaded banks |
-| `./scripts/evolve.sh` | Anytime | Triggers a full pattern evolution on the server |
-| `./scripts/evolve.sh --micro` | Anytime | Triggers a micro evolution (gains/filters/drum rhythm) |
-| `./scripts/evolve.sh --print` | Anytime | Prints current gene state and nearest mode |
+| `./scripts/evolve.sh` | Anytime | Force-evolves all domains and sends patterns |
+| `./scripts/evolve.sh --micro` | Anytime | Micro nudge (gains/filters/drum rhythm only) |
+| `./scripts/evolve.sh --print` | Anytime | Prints current genome state, domain intervals, nearest mode |
+| `./scripts/evolve.sh --event <name>` | Anytime | Manually fire a world event |
 | `./scripts/audition.sh` | When tuning gains | Interactive mixer — play banks, adjust gains, get report |
-| `./scripts/add-samples.sh <folder>` | After adding samples | Full workflow: rename, sync, register, restart SC, update evolve.py |
+| `./scripts/add-samples.sh <folder>` | After adding samples | Full workflow: rename, sync, register, restart SC |
 | `./scripts/normalize-samples.sh <folder>` | After adding melodic samples | Compress + normalize to consistent loudness |
 | `./scripts/fade-samples.sh <folder>` | After adding percussive samples | Add short fade-in/out to prevent clicks |
 
@@ -34,139 +35,126 @@ TidalCycles (patterns) → SuperCollider/SuperDirt (audio engine) → JACK (rout
 
 ## Genetic composer
 
-The engine evolves itself via `scripts/eul/` running in tmux window 6.
+The engine evolves itself via `scripts/eul/` running in tmux window 6. Each sound domain is a separate genetic lifeform with its own mutation rate and clock.
 
 ```
 scripts/eul/
-  genes.py     — 30 float genes [0,1]: tempo, drum structure, chord style, texture, melody, voice
-  modes.py     — 7 mode attractors: minimal, sparse, percussive, melodic, full, balanced, glitch
-  patterns.py  — pattern builders driven entirely by genes (no hardcoded sequences)
-  send.py      — tmux → TidalCycles REPL
-  evolve.py    — main loop: mutate → find nearest mode → nudge → build → send → save
+  genome.py        — GenomePath base class (mutate, nudge_toward, apply_override)
+  genomes/
+    drone.py       — DroneGenome      (rate=0.06, clock=8min)
+    texture.py     — TextureGenome    (rate=0.10, clock=4min)
+    percussive.py  — PercussiveGenome (rate=0.18, clock=90s)
+    melodic.py     — MelodicGenome    (rate=0.10, clock=5min)
+    global_.py     — GlobalGenome     (rate=0.08, clock=6min)
+  banks.py         — sample bank registry (strain class hierarchy)
+  grammar.py       — gene-driven TidalCycles transform selection
+  events.py        — world events system
+  modes.py         — 7 mode attractors (gravitational, not hard switches)
+  patterns.py      — pattern builders, one per channel
+  send.py          — tmux → TidalCycles REPL
+  evolve.py        — main loop: independent domain clocks + world events
 ```
 
-**Full evolution** (every 3 min):
-- All genes get a gaussian mutation nudge + occasional large jump
-- System finds the nearest mode attractor and drifts toward it
-- Rebuilds all layers from scratch
+### Domain clocks
 
-**Micro evolution** (every 30s):
-- Small gene nudge only
-- Varies drum rhythm within same bank (new sequence, step count, speed)
-- Nudges gains and filter sweeps
-- Does NOT retrigger long samples (chords, drone, texture play through)
+Each domain evolves independently. They fall in and out of phase, creating emergent complexity from overlapping cycles.
 
-**Gene state** persists to `/opt/eul/state/genes.json` — evolution survives server restarts.
+| Domain | Clock | Mutation rate | Controls |
+|--------|-------|--------------|---------|
+| `percussive` | 90s | 0.18 | drums — rhythm, bank crossfade, chaos |
+| `texture` | 4min | 0.10 | atmospheric layer — density, speed, samples |
+| `melodic` | 5min | 0.10 | chords, t99, voice — pitch, rhythm, delay |
+| `global` | 6min | 0.08 | tempo, complexity, randomness |
+| `drone` | 8min | 0.06 | foundation — gain, filter sweep, pitch |
 
 ### Modes
 
-Modes are gravitational attractors, not hard switches. The system drifts toward the nearest one.
+Gravitational attractors — the system drifts toward the nearest one, never hard-snaps.
 
 | Mode | Character |
 |------|-----------|
 | `minimal` | drone + texture only — pure ambient, no rhythm |
 | `sparse` | drone + texture + chords, no drums |
 | `percussive` | drone + drums only, no melody |
-| `melodic` | drone + t99 + chords, no drums, voice optional |
+| `melodic` | drone + chords, no drums, voice optional |
 | `full` | all layers active |
 | `balanced` | all layers, nothing dominant |
 | `glitch` | chaotic drums + texture, broken feel |
 
-**Trigger manually:**
+### World events
+
+Sudden global shifts that override genes across multiple domains. Fire probabilistically (~hours apart) or manually.
+
+| Event | Character | Duration |
+|-------|-----------|----------|
+| `crunch` | high drum chaos, boost complexity, dry drone | 1–3 evolves |
+| `dissolve` | sparse drums, wet reverb everything, low complexity | 2–4 evolves |
+| `storm` | max drum chaos + density, fast tempo | 1–2 evolves |
+| `silence` | near-silence, slow tempo, minimal everything | 1–2 evolves |
+| `glitch_burst` | full chaos on drums + texture, one shot | 1 evolve |
+| `harmonic_shift` | randomize interval genes + drone pitch | 2–5 evolves |
+
 ```bash
-./scripts/evolve.sh           # full evolution
-./scripts/evolve.sh --micro   # micro evolution
-./scripts/evolve.sh --print   # show current genes + nearest mode
+./scripts/evolve.sh --event crunch   # fire manually
+# tune probability: edit EVENT_PROBABILITIES in events.py
 ```
 
-**Restart the evolve loop** (after server restart):
-```bash
-ssh root@204.168.163.80
-tmux send-keys -t eul:6 'python3 -u /opt/eul/scripts/eul/evolve.py 2>&1 | tee /var/log/eul/evolve.log' Enter
-```
+**Gene state** persists to `/opt/eul/state/genes.json` — evolution survives server restarts. Auto-migrates from older formats.
 
 ---
 
-## Adding new samples
+## Sample bank system
 
-1. **Drop files** into the right subfolder under `samples/`:
+Banks are registered in `banks.py` using a strain class hierarchy. Strain defines defaults; banks override only what differs.
+
+### Strains
+
+| Strain | Channel | Rules | Looping default |
+|--------|---------|-------|----------------|
+| `Drone` | d1 | — | yes |
+| `Texture` | d2 | exclusive | yes |
+| `Chord` | d3/d6 | exclusive | yes |
+| `Voice` | d5 | exclusive | no |
+| `Drum` | d4 | — | no |
+
+**`exclusive`** — only one bank of this strain plays at a time. Rules are declarative tags; adding/removing them is one-line.
+
+### Adding a new bank
+
+1. Drop files into `samples/<path>/`
+2. Add one entry to `BANKS` in `banks.py`:
+   ```python
+   "mybank": Chord("melodic/chords/mybank", samples=[0,1,2], weight=2),
    ```
-   samples/
-     drone/                         — sustained tones, pads
-     texture/                       — field recordings, noise, found sounds
-     percussive/                    — one subfolder per kit (e.g. percussive/mykick/)
-     melodic/chords/                — one subfolder per chord/pad set
-     melodic/singletone/            — one subfolder per voice/melody source
-   ```
+3. Rsync and run `--once`. Done.
 
-2. **Run the full workflow:**
-   ```bash
-   ./scripts/add-samples.sh samples/path/to/yourfolder
-   ```
+### Current banks
 
-3. **For melodic/chord samples**, normalize after adding:
-   ```bash
-   ./scripts/normalize-samples.sh samples/path/to/yourfolder
-   ```
-
-4. **Commit and push:**
-   ```bash
-   git add samples/ scripts/eul/ && git commit -m "add samples" && git push
-   ```
-
----
-
-## Audition tool
-
-Interactive mixer for calibrating gain levels per sample bank:
-
-```bash
-./scripts/audition.sh
-```
-
-Commands inside audition:
-```
-play <bank>       add bank to mix (supports bank:index e.g. drone:1)
-stop <bank>       remove bank
-stop all          hush everything
-gain <bank> <n>   set gain
-+ / -             nudge last touched bank
-r                 replay all active layers
-list              show all banks
-report            print final gain table
-q                 quit and print report
-```
-
----
-
-## Sample banks
-
-| Bank | Path | Contents | Role |
-|------|------|----------|------|
-| `drone` | `samples/drone/` | Whitney Dark Choir (x2), cataamb2 | d1 — always on |
-| `texture` | `samples/texture/` | catafx7, disconeblip, droid11, droid14, rain | d2 — cycles in/out |
-| `t99` | `samples/melodic/chords/t99/` | 1 sample | d3 — melodic |
-| `dungeondrums` | `samples/percussive/dungeondrums/` | 14 slices | d4 — drums |
-| `rad` | `samples/percussive/rad/` | 37 slices | d4 — drums |
-| `shxc1` | `samples/percussive/shxc1/` | 15 slices | d4 — drums |
-| `ls` | `samples/melodic/chords/ls/` | 9 chord WAVs | d6 — chords |
-| `akatosh_chord` | `samples/melodic/chords/akatosh_chord/` | 2 chord WAVs | d6 — chords |
-| `blackmirror` | `samples/melodic/chords/blackmirror/` | 1 sample | d6 — chords |
-| `discoveryone` | `samples/melodic/chords/discoveryone/` | 1 pad WAV | d6 — chords |
-| `shxc` | `samples/melodic/chords/shxc/` | 1 sample | d6 — chords |
-| `madonna` | `samples/melodic/singletone/madonna/` | Frozen acapella | d5 — voice |
-| `akatosh_voice` | `samples/melodic/singletone/akatosh_voice/` | 1 sample | d5 — voice |
-| `discoveryone` | `samples/melodic/singletone/discoveryone/` | 1 sample | d5 — voice |
+| Bank | Strain | Path | Contents |
+|------|--------|------|----------|
+| `drone` | Drone | `samples/drone/` | Whitney Dark Choir (×2), cataamb2 |
+| `texture` | Texture | `samples/texture/` | catafx7, disconeblip, droid11×2, rain |
+| `ls` | Chord | `samples/melodic/chords/ls/` | 9 pad WAVs — looping |
+| `akatosh_chord` | Chord | `samples/melodic/chords/akatosh_chord/` | 1 pad — looping |
+| `blackmirror` | Chord | `samples/melodic/chords/blackmirror/` | 1 pad — looping |
+| `discoveryone` | Chord | `samples/melodic/chords/discoveryone/` | 1 pad — looping |
+| `shxc` | Chord | `samples/melodic/chords/shxc/` | 1 sample — can glitch |
+| `t99` | Chord | `samples/melodic/chords/t99/` | 1 melodic instrument — can glitch |
+| `madonna` | Voice | `samples/melodic/singletone/madonna/` | Frozen acapella |
+| `akatosh_voice` | Voice | `samples/melodic/singletone/akatosh_voice/` | 1 sample |
+| `discoveryone_voice` | Voice | `samples/melodic/singletone/discoveryone/` | 1 sample |
+| `rad` | Drum | `samples/percussive/rad/` | 37 slices |
+| `shxc1` | Drum | `samples/percussive/shxc1/` | 15 slices |
 
 ---
 
 ## Server
 
 - **IP:** 204.168.163.80
-- **Provider:** Hetzner CPX22 (~€8/mo)
+- **Provider:** Hetzner CPX22
 - **OS:** Ubuntu 24.04
 - **SSH:** `ssh root@204.168.163.80`
-- **Logs:** `/var/log/eul/` — jack, superdirt, icecast, darkice, evolve
+- **Logs:** `/var/log/eul/`
 - **Gene state:** `/opt/eul/state/genes.json`
 
 ## tmux windows
@@ -189,27 +177,16 @@ Navigate: `Ctrl+b` + window number. Detach without stopping: `Ctrl+b d`.
 
 ```bash
 ./scripts/status.sh
-```
-
-Or manually:
-```bash
-curl -I http://204.168.163.80:8000/stream
-# 200 = live
+curl -I http://204.168.163.80:8000/stream   # 200 = live
 ```
 
 ---
 
 ## Restarting everything
 
-If the stream goes down:
-
 ```bash
 ssh root@204.168.163.80
 bash /opt/eul/setup/start.sh
 # wait ~30 seconds for SuperDirt to boot
-```
-
-Then restore patterns:
-```bash
 ./scripts/evolve.sh
 ```

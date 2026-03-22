@@ -110,6 +110,7 @@ Claude has full SSH access to the server at `root@204.168.163.80`. Always apply 
 - Explain TidalCycles concepts briefly as you use them — Oresti is a SW engineer (6 years, AI/backend) but new to this domain
 - Keep it playful, not academic
 - Always rsync scripts/eul/ to server after changes and run --once to apply immediately
+- Adding a new sample bank: one entry in `banks.py` BANKS dict, then rsync + --once. No other code changes.
 - After SC restarts, always reconnect JACK and run evolve --once
 
 ## Key commands
@@ -132,22 +133,36 @@ Claude has full SSH access to the server at `root@204.168.163.80`. Always apply 
 - **`# begin`** — sets playback start point (0.0–1.0). Used on all long samples so each session starts at a different point.
 
 ## Sample banks
-| Bank | Path | Role |
-|------|------|------|
-| `drone` | `samples/drone/` | d1 — always on |
-| `texture` | `samples/texture/` | d2 — cycles in/out |
-| `t99` | `samples/melodic/chords/t99/` | d3 — melodic |
-| `dungeondrums` | `samples/percussive/dungeondrums/` | d4 — drums |
-| `rad` | `samples/percussive/rad/` | d4 — drums |
-| `shxc1` | `samples/percussive/shxc1/` | d4 — drums |
-| `ls` | `samples/melodic/chords/ls/` | d6 — chords |
-| `akatosh_chord` | `samples/melodic/chords/akatosh_chord/` | d6 — chords |
-| `blackmirror` | `samples/melodic/chords/blackmirror/` | d6 — chords |
-| `discoveryone` | `samples/melodic/chords/discoveryone/` | d6 — chords |
-| `shxc` | `samples/melodic/chords/shxc/` | d6 — chords |
-| `madonna` | `samples/melodic/singletone/madonna/` | d5 — voice |
-| `akatosh_voice` | `samples/melodic/singletone/akatosh_voice/` | d5 — voice |
-| `discoveryone` | `samples/melodic/singletone/discoveryone/` | d5 — voice |
+
+Banks are registered in `banks.py` using a strain class hierarchy. Strain defines defaults; banks override only what differs. Adding a new bank = one line in `BANKS`.
+
+### Strains
+| Strain | Channel | Key rules | Looping default |
+|--------|---------|-----------|----------------|
+| `Drone` | d1 | — | yes |
+| `Texture` | d2 | exclusive | yes |
+| `Chord` | d3/d6 | exclusive | yes |
+| `Voice` | d5 | exclusive | no |
+| `Drum` | d4 | — | no |
+
+`exclusive` = only one bank of this strain plays at a time. Rules are declarative tags on the class.
+
+### Banks
+| Bank | Strain | Path | Notes |
+|------|--------|------|-------|
+| `drone` | Drone | `samples/drone/` | 3 samples |
+| `texture` | Texture | `samples/texture/` | 5 samples |
+| `ls` | Chord | `samples/melodic/chords/ls/` | 9 samples, looping |
+| `akatosh_chord` | Chord | `samples/melodic/chords/akatosh_chord/` | looping |
+| `blackmirror` | Chord | `samples/melodic/chords/blackmirror/` | looping |
+| `discoveryone` | Chord | `samples/melodic/chords/discoveryone/` | looping |
+| `shxc` | Chord | `samples/melodic/chords/shxc/` | looping=False, can glitch |
+| `t99` | Chord | `samples/melodic/chords/t99/` | looping=False, melodic instrument |
+| `madonna` | Voice | `samples/melodic/singletone/madonna/` | |
+| `akatosh_voice` | Voice | `samples/melodic/singletone/akatosh_voice/` | |
+| `discoveryone_voice` | Voice | `samples/melodic/singletone/discoveryone/` | |
+| `rad` | Drum | `samples/percussive/rad/` | 37 slices |
+| `shxc1` | Drum | `samples/percussive/shxc1/` | 15 slices |
 
 ## Git
 Remote: git@github.com:orestitheo/eul.git (SSH)
