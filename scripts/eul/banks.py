@@ -80,7 +80,6 @@ BANKS = {
 
     # Chords (d6) + melodic instrument (d3)
     # All Chord strain → exclusive (one at a time), but looping is per-bank
-    "ls":            Chord("melodic/chords/ls",           samples=list(range(9)), weight=3),
     "akatosh_chord": Chord("melodic/chords/akatosh_chord",samples=list(range(1)), weight=3),
     "blackmirror":   Chord("melodic/chords/blackmirror",  samples=[0],            weight=3),
     "discoveryone":  Chord("melodic/chords/discoveryone", samples=[0],            weight=3),

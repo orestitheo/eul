@@ -92,9 +92,16 @@ def drone(drn):
     pitch   = drn.map("pitch", -7, 7, integer=True)
     begin   = drn.map("begin", 0.0, 0.6)
     sample  = random.randint(0, 2)
-    pitch_str = f" # note {pitch}" if pitch != 0 else ""
+    pitch_str = f" # note ({pitch})" if pitch != 0 else ""
+    # Occasionally gate the drone — on for 3-8 cycles, off for 1-4
+    if random.random() < 0.4:
+        on    = random.randint(3, 8)
+        total = on + random.randint(1, 4)
+        gate  = f"whenmod {total} {on} id $ "
+    else:
+        gate = ""
     return (
-        f'd1 $ sound "drone:{sample}"'
+        f'd1 $ {gate}sound "drone:{sample}"'
         f' # begin {begin}'
         f' # gain {gain}'
         f' # lpf (slow {slow_f} $ range {lpf_lo} {lpf_hi} perlin)'
@@ -314,17 +321,22 @@ def chords(mel, chord_on, total, glob):
     chaos     = glob.get("randomness")
     begin     = round(random.uniform(0.0, 0.7), 2)
 
-    # Looping banks: always loopAt + legato=1, never staccato or glitch slice
+    # Long pads: sustain holds the sample for N seconds regardless of cycle length.
+    # loopAt silences long samples at certain tempos — sustain is the safe alternative.
     if is_looping:
-        style_str = f' # begin {begin} # loopAt {loop_at} # legato 1'
+        sustain = random.randint(8, 16)
+        loop_prefix = ''
+        style_str = f' # begin {begin} # sustain {sustain} # legato 1'
     elif chaos > 0.65:
-        # Glitch slice: randomize begin/end window
         end = round(begin + random.uniform(0.1, 0.4), 2)
-        style_str = f' # begin {begin} # end {min(end, 0.99)} # legato 1 # loopAt {loop_at}'
+        loop_prefix = ''
+        style_str = f' # begin {begin} # end {min(end, 0.99)} # legato 1'
     elif staccato < 0.15:
+        loop_prefix = ''
         style_str = f' # begin {begin} # legato {staccato} # cut 1'
     else:
-        style_str = f' # begin {begin} # loopAt {loop_at} # legato 1'
+        loop_prefix = ''
+        style_str = f' # begin {begin} # legato 1'
 
     delay_str = (
         f' # delay {round(delay_wet, 2)}'
@@ -334,7 +346,7 @@ def chords(mel, chord_on, total, glob):
 
     # Gene-driven backbone transforms (tame chord pool)
     transforms = grammar.pick_transforms(chaos, glob.get("complexity"), pool="chords")
-    sound_expr = f'slow {slow_f} $ sound (choose [{chord_list}])'
+    sound_expr = f'{loop_prefix}slow {slow_f} $ sound (choose [{chord_list}])'
     backbone   = grammar.wrap_pattern(sound_expr, transforms)
 
     return (
