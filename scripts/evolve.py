@@ -151,7 +151,6 @@ def pick_t99(mode, chord_on, total):
     return (
         f'd3 $ whenmod {total} {chord_on} id'
         f' $ slow {slow_factor} $ sound "t99:0"'
-        f' # loopAt {loop_at}'
         f' # legato 1'
         f'{note_str}'
         f' # gain {gain}'
