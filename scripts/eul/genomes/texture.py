@@ -14,5 +14,6 @@ class TextureGenome(GenomePath):
         "speed_rand":  (0.5,  0.0, 1.0, "random speed width (perlin range)"),
         "gain":        (0.6,  0.3, 0.9, "texture gain"),
         "sample_bias": (0.5,  0.0, 1.0, "bias toward which texture sample"),
+        "begin":       (0.3,  0.0, 0.7, "sample start point"),
         "room":        (0.6,  0.0, 1.0, "reverb amount"),
     }

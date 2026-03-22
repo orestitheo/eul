@@ -93,10 +93,11 @@ def drone(drn):
     begin   = drn.map("begin", 0.0, 0.6)
     sample  = random.randint(0, 2)
     pitch_str = f" # note ({pitch})" if pitch != 0 else ""
-    # Occasionally gate the drone — on for 3-8 cycles, off for 1-4
-    if random.random() < 0.4:
-        on    = random.randint(3, 8)
-        total = on + random.randint(1, 4)
+    # Gate driven by gene — 0=always on, 1=frequently silent
+    gate_amt = drn.get("gate")
+    if gate_amt > 0.1:
+        on    = max(2, round((1 - gate_amt) * 8))
+        total = on + max(1, round(gate_amt * 4))
         gate  = f"whenmod {total} {on} id $ "
     else:
         gate = ""
@@ -129,7 +130,7 @@ def texture(tex, glob):
     tex_seq   = " ".join(f"texture:{i}" for i in picks)
     chaos     = glob.get("randomness")
     jux_int   = max(3, round(3 + (1 - chaos) * 5))
-    begin     = round(random.uniform(0.0, 0.7), 2)
+    begin     = tex.map("begin", 0.0, 0.7)
     return (
         f'd2 $ whenmod {total} {on} id'
         f' $ every {jux_int} (jux rev)'
@@ -150,7 +151,9 @@ def melodic(mel, chord_on, total):
     """
     from banks import CHORD_BANKS
     non_looping = {k: v for k, v in CHORD_BANKS.items() if not v.looping}
-    bank_name  = random.choice(list(non_looping.keys()))
+    nl_names   = list(non_looping.keys())
+    bank_pos   = mel.get("mel_bank_pos") * (len(nl_names) - 1)
+    bank_name  = nl_names[round(bank_pos)]
     sample     = f"{bank_name}:0"
 
     slow_f     = mel.map("mel_slow", 2, 5, integer=True)
@@ -295,10 +298,10 @@ def chords(mel, chord_on, total, glob):
     """Chord layer (d6). mel: MelodicGenome, glob: GlobalGenome."""
     from banks import CHORD_BANKS
 
-    # Exclusive: pick ONE bank per evolve, weighted by bank weight (not sample count)
+    # Bank selection driven by gene — drifts across chord banks over time
     bank_names  = list(CHORD_BANKS.keys())
-    bank_weights = [CHORD_BANKS[b].weight for b in bank_names]
-    bank_name   = random.choices(bank_names, weights=bank_weights, k=1)[0]
+    bank_pos    = mel.get("chord_bank_pos") * (len(bank_names) - 1)
+    bank_name   = bank_names[round(bank_pos)]
     bank        = CHORD_BANKS[bank_name]
     is_looping  = bank.looping
 
@@ -316,7 +319,7 @@ def chords(mel, chord_on, total, glob):
     staccato  = mel.map("chord_staccato", 0.05, 0.5)
     delay_wet = mel.map("chord_delay_wet", 0.0, 1.0)
     chaos     = glob.get("randomness")
-    begin     = round(random.uniform(0.0, 0.7), 2)
+    begin     = mel.map("chord_begin", 0.0, 0.8)
 
     # Long pads: sustain holds sample for N seconds. loopAt silences long samples.
     if is_looping:

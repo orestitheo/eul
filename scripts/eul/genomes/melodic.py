@@ -10,6 +10,8 @@ class MelodicGenome(GenomePath):
     BIG_JUMP_PROB = 0.04
     GENES = {
         # Chord layer (d6)
+        "chord_bank_pos":   (0.5,  0.0, 1.0, "position across chord banks"),
+        "chord_begin":      (0.2,  0.0, 0.8, "sample start point for chord banks"),
         "chord_slow":       (0.5,  0.0, 1.0, "slow factor, maps to 1-4"),
         "chord_loop_len":   (0.5,  0.0, 1.0, "loopAt value, maps to 1-8 beats"),
         "chord_staccato":   (0.2,  0.0, 1.0, "legato length, 0=short 1=long"),
@@ -25,6 +27,7 @@ class MelodicGenome(GenomePath):
         "mel_rhythm":       (0.2,  0.0, 1.0, "rest density — 0=sparse, 1=dense stuttering"),
         "mel_speed":        (0.5,  0.0, 1.0, "pitch/speed center, maps to 0.4-1.8, perlin-modulated"),
         "mel_speed_rand":   (0.3,  0.0, 1.0, "pitch drift width (perlin range)"),
+        "mel_bank_pos":     (0.5,  0.0, 1.0, "position across non-looping chord banks"),
         "mel_begin":        (0.0,  0.0, 0.7, "sample start point"),
         "mel_chop":         (0.0,  0.0, 1.0, "chop sample into fragments, 0=off, maps to 2-8 chunks"),
         "mel_layer":        (0.0,  0.0, 1.0, "stack a second voice at different speed/pitch"),

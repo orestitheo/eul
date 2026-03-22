@@ -16,4 +16,5 @@ class DroneGenome(GenomePath):
         "room":       (0.8,  0.5, 1.0, "reverb amount"),
         "pitch":      (0.5,  0.0, 1.0, "semitone offset, maps to -7 to +7"),
         "begin":      (0.3,  0.0, 0.6, "sample start point"),
+        "gate":       (0.1,  0.0, 1.0, "gating amount — 0=always on, 1=frequently silent"),
     }
