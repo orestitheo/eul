@@ -124,7 +124,9 @@ def micro_evolve(g):
     slice_bias = g.get("drum_slice_bias")
     drum_spd   = g.get("drum_speed")
     # Keep whichever bank is loaded; just vary the sequence and timing
-    bank       = g.state.get("drum_bank", random.choice(list(P.DRUM_BANKS.keys())))
+    bank_names = list(P.DRUM_BANKS.keys())
+    bank_idx   = g.map("drum_bank_idx", 0, len(bank_names) - 1, integer=True)
+    bank       = g.state.get("drum_bank", bank_names[bank_idx])
     max_slices = P.DRUM_BANKS[bank]
     steps      = random.choice([6, 8, 8, 10])  # vary step count = time signature feel
     seq        = P._drum_seq(bank, steps, max_slices, rest_prob, slice_bias)

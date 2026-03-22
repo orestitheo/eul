@@ -183,13 +183,40 @@ def drums(g, mode_flags):
     poly       = g.get("drum_polyrhythm")
     gain       = round(random.uniform(0.8, 0.9), 1)
 
-    bank       = random.choice(list(DRUM_BANKS.keys()))
-    g.state["drum_bank"] = bank  # remember for micro-evolve
+    # Bank selection drifts via gene — no hard random jump
+    bank_names = list(DRUM_BANKS.keys())  # [dungeondrums, rad, shxc1]
+    bank_idx   = g.map("drum_bank_idx", 0, len(bank_names) - 1, integer=True)
+    bank       = bank_names[bank_idx]
+    g.state["drum_bank"] = bank
     max_slices = DRUM_BANKS[bank]
 
-    # Build sequence from genes rather than hardcoded slice lists
+    # Occasionally blend slices from a second bank (~20% when blend gene is high)
+    blend      = g.get("drum_blend")
+    blend_bank = None
+    if blend > 0.5 and random.random() < 0.4:
+        other_banks = [b for b in bank_names if b != bank]
+        blend_bank  = random.choice(other_banks)
+
+    # Build sequence — optionally blend slices from a second bank
     k     = _euclidean_hits(g.get("drum_density"))
-    seq   = _drum_seq(bank, 8, max_slices, rest_prob, slice_bias)
+    if blend_bank:
+        blend_slices = DRUM_BANKS[blend_bank]
+        # Mix: each step randomly draws from primary or blend bank
+        steps = []
+        for _ in range(8):
+            if random.random() < rest_prob:
+                steps.append("~")
+            elif random.random() < 0.3:
+                idx = max(0, min(blend_slices - 1, round(random.gauss(slice_bias * (blend_slices - 1), blend_slices // 3))))
+                steps.append(f"{blend_bank}:{idx}")
+            else:
+                idx = max(0, min(max_slices - 1, round(random.gauss(slice_bias * (max_slices - 1), max_slices // 3))))
+                steps.append(f"{bank}:{idx}")
+        if all(s == "~" for s in steps):
+            steps[0] = f"{bank}:0"
+        seq = " ".join(steps)
+    else:
+        seq = _drum_seq(bank, 8, max_slices, rest_prob, slice_bias)
     transforms = _every_transforms(chaos, complexity)
     transform_str = " $ ".join(transforms) if transforms else ""
 

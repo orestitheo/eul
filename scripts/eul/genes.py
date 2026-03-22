@@ -32,6 +32,8 @@ GENE_DEFS = {
     "drum_polyrhythm":   (0.3,  0.0, 1.0, "chance of layering a second rhythm"),
     "drum_chaos":        (0.2,  0.0, 1.0, "how often rev/fast transforms fire"),
     "drum_slice_bias":   (0.5,  0.0, 1.0, "which region of the bank to favour, 0=low 1=high"),
+    "drum_bank_idx":     (0.0,  0.0, 1.0, "which drum bank, drifts across [dungeondrums, rad, shxc1]"),
+    "drum_blend":        (0.1,  0.0, 1.0, "how much to blend a second bank into the sequence"),
 
     # --- Chord structure ---
     "chord_slow":        (0.5,  0.0, 1.0, "slow factor, mapped to 1-4"),
