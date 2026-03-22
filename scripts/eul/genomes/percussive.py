@@ -17,7 +17,5 @@ class PercussiveGenome(GenomePath):
         "polyrhythm":  (0.3,  0.0, 1.0, "chance of layering a second rhythm"),
         "chaos":       (0.2,  0.0, 1.0, "how often destructive transforms fire"),
         "slice_bias":  (0.5,  0.0, 1.0, "which region of the bank to favour, 0=low 1=high"),
-        "bank_idx":       (0.0,  0.0, 1.0, "primary drum bank, drifts across available banks"),
-        "blend":          (0.1,  0.0, 1.0, "how much of the secondary bank bleeds into each step"),
-        "blend_bank_idx": (0.5,  0.0, 1.0, "secondary drum bank, drifts independently"),
+        "bank_pos":    (0.0,  0.0, 1.0, "position across bank spectrum — 0=first bank, 1=last bank, in-between=crossfade"),
     }

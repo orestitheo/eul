@@ -76,8 +76,7 @@ def _migrate_v1(flat: dict) -> dict:
             "polyrhythm":  flat.get("drum_polyrhythm", 0.3),
             "chaos":       flat.get("drum_chaos",      0.2),
             "slice_bias":  flat.get("drum_slice_bias", 0.5),
-            "bank_idx":    flat.get("drum_bank_idx",   0.0),
-            "blend":       flat.get("drum_blend",      0.1),
+            "bank_pos":    flat.get("drum_bank_idx",   0.0),
         }),
         "melodic": MelodicGenome({
             "chord_slow":      flat.get("chord_slow",      0.5),
@@ -256,8 +255,8 @@ def micro_evolve(genomes: dict, events: EventManager):
     slice_bias = perc.get("slice_bias")
     drum_spd   = perc.get("speed")
     from banks import DRUM_BANKS
-    bank_idx   = perc.map("bank_idx", 0, len(DRUM_BANKS) - 1, integer=True)
-    bank       = DRUM_BANKS[bank_idx]
+    bank_pos = perc.get("bank_pos") * (len(DRUM_BANKS) - 1)
+    bank     = DRUM_BANKS[int(bank_pos)]
     from banks import BANKS
     max_slices = BANKS[bank]["slices"]
     steps      = random.choice([6, 8, 8, 10])

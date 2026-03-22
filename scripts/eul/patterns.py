@@ -167,32 +167,31 @@ def drums(perc, glob):
     poly       = perc.get("polyrhythm")
     gain       = round(random.uniform(0.8, 0.9), 1)
 
-    bank_idx   = perc.map("bank_idx", 0, len(DRUM_BANKS) - 1, integer=True)
-    bank       = DRUM_BANKS[bank_idx]
-    max_slices = _drum_bank_slices(bank)
+    # Bank position drifts continuously across the spectrum [0, len(DRUM_BANKS)-1].
+    # Integer part = left bank, fractional part = crossfade amount toward right bank.
+    # e.g. pos=0.7 → 30% rad, 70% shxc1. The transition is a genetic journey.
+    bank_pos  = perc.get("bank_pos") * (len(DRUM_BANKS) - 1)   # scale to bank count
+    left_idx  = int(bank_pos)
+    right_idx = min(left_idx + 1, len(DRUM_BANKS) - 1)
+    mix       = bank_pos - left_idx   # 0.0 = fully left, 1.0 = fully right
 
-    # Secondary bank drifts independently — always present, blend controls the mix ratio
-    blend            = perc.get("blend")
-    blend_bank_idx   = perc.map("blend_bank_idx", 0, len(DRUM_BANKS) - 1, integer=True)
-    blend_bank       = DRUM_BANKS[blend_bank_idx]
-    if blend_bank == bank:
-        # If genes converge to same bank, pick the next one
-        blend_bank = DRUM_BANKS[(blend_bank_idx + 1) % len(DRUM_BANKS)]
-    blend_slices = _drum_bank_slices(blend_bank)
+    bank_a      = DRUM_BANKS[left_idx]
+    bank_b      = DRUM_BANKS[right_idx]
+    slices_a    = _drum_bank_slices(bank_a)
+    slices_b    = _drum_bank_slices(bank_b)
 
-    # Build sequence: each step draws from primary or secondary based on blend ratio
     steps = []
     for _ in range(8):
         if random.random() < rest_prob:
             steps.append("~")
-        elif random.random() < blend:
-            idx = max(0, min(blend_slices - 1, round(random.gauss(slice_bias * (blend_slices - 1), blend_slices // 3))))
-            steps.append(f"{blend_bank}:{idx}")
+        elif random.random() < mix:
+            idx = max(0, min(slices_b - 1, round(random.gauss(slice_bias * (slices_b - 1), slices_b // 3))))
+            steps.append(f"{bank_b}:{idx}")
         else:
-            idx = max(0, min(max_slices - 1, round(random.gauss(slice_bias * (max_slices - 1), max_slices // 3))))
-            steps.append(f"{bank}:{idx}")
+            idx = max(0, min(slices_a - 1, round(random.gauss(slice_bias * (slices_a - 1), slices_a // 3))))
+            steps.append(f"{bank_a}:{idx}")
     if all(s == "~" for s in steps):
-        steps[0] = f"{bank}:0"
+        steps[0] = f"{bank_a}:0"
     seq = " ".join(steps)
 
     # Gene-driven backbone transforms
@@ -207,7 +206,7 @@ def drums(perc, glob):
 
     # Polyrhythm layer
     if poly > 0.5:
-        seq2 = _drum_seq(bank, 5, max_slices, rest_prob, slice_bias)
+        seq2 = _drum_seq(bank_a, 5, slices_a, rest_prob, slice_bias)
         sound_expr = f'stack [{sound_expr}, slow 1.5 $ sound "{seq2}"]'
 
     backbone = grammar.wrap_pattern(sound_expr, transforms)
