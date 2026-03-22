@@ -44,15 +44,37 @@ TidalCycles (patterns) → SuperCollider/SuperDirt (audio) → JACK (routing) �
 | d6 | Chords — whenmod gated, never overlaps drums |
 
 ## Genetic composer (scripts/eul/)
-The composer is a Python package with four modules:
+The composer is a Python package. Each sound domain is a separate genetic path with its own mutation rate.
 
-- **genes.py** — 30 float genes [0,1] covering tempo, drum density/timing, chord style, texture, melodic intervals, voice. Mutate each full evolve (gaussian nudge + occasional big jump). Persist to `/opt/eul/state/genes.json`.
-- **modes.py** — 7 mode attractors (`minimal`, `sparse`, `percussive`, `melodic`, `full`, `balanced`, `glitch`). Each is a partial gene dict. System finds nearest mode each evolve and nudges toward it — gravitational pull, not a hard snap.
-- **patterns.py** — pattern builders driven entirely by genes. Drum sequences are algorithmic (euclidean hits, slice bias, rest probability). All samples use `# begin` for random start points.
-- **evolve.py** — main loop: mutate → find nearest mode → nudge → build patterns → send → save.
+- **genome.py** — `GenomePath` base class. All domain genomes extend this. Genes are floats [0,1] mapped to real ranges via `.map()`. Methods: `mutate`, `nudge_toward` (mode pull), `apply_override` (event snap).
+- **genomes/** — one file per domain:
+  - `drone.py` — `DroneGenome` (rate=0.06, slow drift)
+  - `texture.py` — `TextureGenome` (rate=0.10)
+  - `percussive.py` — `PercussiveGenome` (rate=0.18, most volatile)
+  - `melodic.py` — `MelodicGenome` (rate=0.10, covers d3+d5+d6)
+  - `global_.py` — `GlobalGenome` (rate=0.08, tempo + complexity)
+- **banks.py** — single registry of all sample banks. Add a bank or rename a folder here only. Looping flag on chord banks protects long pads from staccato/glitch slicing.
+- **grammar.py** — gene-driven TidalCycles backbone transforms. `pick_transforms(chaos, complexity, pool)` selects from a weighted pool (`scramble`, `chunk`, `palindrome`, `iter`, `every N rev`, etc). Drums get the full destructive pool; chords get a tame subset.
+- **modes.py** — 7 mode attractors with domain-namespaced gene targets. `nearest_mode(genomes)` computes distance across all domains.
+- **patterns.py** — pattern builders, one per channel. Takes genome objects. Calls `grammar.py` for drum/chord backbone.
+- **events.py** — world events: sudden global shifts that override genes across multiple domains. `EventManager.tick()` called each full evolve. Add new events in `EVENTS` dict — no core code changes needed. Tune probabilities in `EVENT_PROBABILITIES` at top of file.
+- **evolve.py** — main loop: mutate each domain independently → mode pull → world events → build → send → save.
 
-**Full evolve** (every 3 min): mutates all genes, picks new mode attractor, rebuilds all layers.
-**Micro evolve** (every 30s): small gene nudge, varies drum rhythm within same bank, nudges gains/filters only — does not retrigger long samples.
+**Full evolve** (every 3 min): mutates all domains at their own rates, finds nearest mode, ticks world events, rebuilds all layers.
+**Micro evolve** (every 30s): light nudge of drone/texture/percussion gains and filters only — does not retrigger long samples or switch banks.
+
+### World events
+| Event | Character | Duration |
+|-------|-----------|----------|
+| `crunch` | high drum chaos, boost complexity, dry drone | 1–3 evolves |
+| `dissolve` | sparse drums, wet reverb everything, low complexity | 2–4 evolves |
+| `storm` | max drum chaos + density, fast tempo, chaotic texture | 1–2 evolves |
+| `silence` | near-silence, slow tempo, minimal everything | 1–2 evolves |
+| `glitch_burst` | full chaos on drums + texture, 1 evolve only | 1 evolve |
+| `harmonic_shift` | randomize interval genes + drone pitch | 2–5 evolves |
+
+Fire manually: `./scripts/evolve.sh --event <name>`
+Tune probability: edit `EVENT_PROBABILITIES` in `events.py` (set to `1.0` to force next tick).
 
 ## Modes
 | Mode | Character |
@@ -96,6 +118,7 @@ Claude has full SSH access to the server at `root@204.168.163.80`. Always apply 
 ./scripts/evolve.sh                      # trigger full evolution
 ./scripts/evolve.sh --micro              # trigger micro evolution
 ./scripts/evolve.sh --print              # print current gene state + nearest mode
+./scripts/evolve.sh --event <name>      # manually fire a world event
 ./scripts/audition.sh                    # interactive gain mixer
 ./scripts/add-samples.sh <folder>        # add new sample bank (full workflow)
 ./scripts/normalize-samples.sh <folder>  # compress/normalize samples
