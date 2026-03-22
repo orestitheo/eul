@@ -86,10 +86,14 @@ def pick_texture(mode):
         on = random.choice([4, 5, 6])
         total = on + random.choice([1, 2])
         gain = round(random.uniform(0.6, 0.8), 1)
+    # Pick 1 or 2 texture samples randomly
+    num = random.choice([1, 1, 2])
+    picks = random.sample(range(5), num)
+    tex_seq = " ".join(f"texture:{i}" for i in picks)
     return (
         f'd2 $ whenmod {total} {on} id'
         f' $ every {random.randint(4,7)} (jux rev)'
-        f' $ slow {slow_factor} $ sound "texture:0 texture:1 texture:2"'
+        f' $ slow {slow_factor} $ sound "{tex_seq}"'
         f' # gain {gain}'
         f' # speed (rand + {round(random.uniform(0.3, 0.7), 1)})'
         f' # room {round(random.uniform(0.5, 0.9), 1)}'
