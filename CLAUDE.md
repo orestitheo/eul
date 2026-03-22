@@ -54,6 +54,11 @@ TidalCycles (patterns) → SuperCollider/SuperDirt (audio) → JACK (routing) �
 - Music style: ambient, textural, slowly evolving, occasional beats
 - Album SYN on Bandcamp (dmea.bandcamp.com)
 
+## SSH access
+Claude has full SSH access to the server at `root@204.168.163.80`. Always apply changes directly:
+- Edit evolve.py locally → `rsync -az scripts/evolve.py root@204.168.163.80:/opt/eul/scripts/evolve.py` → `ssh root@204.168.163.80 "python3 /opt/eul/scripts/evolve.py --once"`
+- Never ask Oresti to run commands manually unless it requires interactive input
+
 ## Rules
 - Don't over-engineer
 - Short commit messages, don't credit yourself
