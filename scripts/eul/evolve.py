@@ -53,6 +53,9 @@ TICK_SECONDS = 30
 # World events are checked every N full ticks (i.e. every N * TICK_SECONDS)
 EVENT_TICK_EVERY = 6   # every ~3 min
 
+# After this many consecutive domain ticks in the same mode, start nudging away
+MODE_ESCAPE_AFTER = 8  # ~8 domain ticks — roughly 12 min for percussive, longer for drone
+
 
 # ── State persistence ──────────────────────────────────────────────────────────
 
@@ -218,33 +221,65 @@ def build_session(genomes: dict, mode: dict):
 
 # ── Evolution cycles ───────────────────────────────────────────────────────────
 
-def evolve_domain(domain: str, genomes: dict):
-    """Mutate a single domain and nudge it toward the nearest mode."""
+def evolve_domain(domain: str, genomes: dict, mode_streak: dict):
+    """
+    Mutate a single domain and nudge it toward the nearest mode.
+    Pull weakens the longer the system stays in the same mode (escape pressure).
+    After MODE_ESCAPE_AFTER ticks in same mode, nudge away instead of toward.
+    """
     mode_name, dist = nearest_mode(genomes)
     mode = MODES[mode_name]
-    pull = 0.15 if dist > 1.0 else 0.25
+    streak = mode_streak.get(mode_name, 0)
 
-    g = genomes[domain].mutate()
-    targets = mode.get(domain, {})
-    if isinstance(targets, dict) and targets:
-        g = g.nudge_toward(targets, pull)
+    if streak >= MODE_ESCAPE_AFTER:
+        # Escape: nudge away by pulling toward a random other mode
+        other_names = [m for m in MODES if m != mode_name]
+        escape_mode = MODES[random.choice(other_names)]
+        pull = 0.20
+        g = genomes[domain].mutate()
+        targets = escape_mode.get(domain, {})
+        if isinstance(targets, dict) and targets:
+            g = g.nudge_toward(targets, pull)
+        print(f"  [escape from {mode_name} → {escape_mode}]")
+    else:
+        # Normal: weak pull, mutation has room to wander
+        pull = 0.10 if dist > 1.0 else 0.18
+        g = genomes[domain].mutate()
+        targets = mode.get(domain, {})
+        if isinstance(targets, dict) and targets:
+            g = g.nudge_toward(targets, pull)
+
     genomes[domain] = g
     return mode_name
 
 
-def tick(genomes: dict, events: EventManager, last_evolved: dict, tick_count: int):
+def tick(genomes: dict, events: EventManager, last_evolved: dict, tick_count: int, mode_streak: dict):
     """
     Called every TICK_SECONDS. Checks which domains are due, mutates them,
     rebuilds patterns if anything changed. Returns updated last_evolved dict.
+    mode_streak tracks consecutive ticks per mode name for escape logic.
     """
     now     = time.time()
     changed = []
 
     for domain, interval in DOMAIN_INTERVALS.items():
         if now - last_evolved.get(domain, 0) >= interval:
-            mode_name = evolve_domain(domain, genomes)
+            mode_name = evolve_domain(domain, genomes, mode_streak)
             last_evolved[domain] = now
             changed.append(domain)
+
+    # Update mode streak
+    if changed:
+        current_mode, _ = nearest_mode(genomes)
+        if mode_streak.get("_current") == current_mode:
+            mode_streak[current_mode] = mode_streak.get(current_mode, 0) + 1
+        else:
+            # Mode changed — reset streak for old mode
+            old = mode_streak.get("_current")
+            if old:
+                mode_streak[old] = 0
+            mode_streak["_current"] = current_mode
+            mode_streak[current_mode] = 1
 
     # World events on their own cadence
     event_str = ""
@@ -308,7 +343,7 @@ if __name__ == "__main__":
     if "--once" in sys.argv:
         # Force-evolve all domains once and send
         for domain in genomes:
-            evolve_domain(domain, genomes)
+            evolve_domain(domain, genomes, {})
         lines, mode_name = build_session(genomes, MODES[nearest_mode(genomes)[0]])
         print(f"Evolving all... [mode: {mode_name}]")
         send_all(lines)
@@ -353,9 +388,10 @@ if __name__ == "__main__":
         # Stagger initial last_evolved so not everything fires at once on first tick
         now = time.time()
         last_evolved = {d: now - (i * TICK_SECONDS) for i, d in enumerate(DOMAIN_INTERVALS)}
+        mode_streak = {}
         tick_count = 0
         while True:
-            last_evolved = tick(genomes, events, last_evolved, tick_count)
+            last_evolved = tick(genomes, events, last_evolved, tick_count, mode_streak)
             _micro_nudge(genomes, events)
             tick_count += 1
             time.sleep(TICK_SECONDS)
