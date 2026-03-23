@@ -107,9 +107,6 @@ def _migrate_v1(flat: dict) -> dict:
             "chord_delay_wet": flat.get("chord_delay_wet", 0.5),
             "chord_room":      flat.get("chord_room",      0.7),
             "chord_gain":      flat.get("chord_gain",      0.7),
-            "t99_slow":        flat.get("melodic_slow",    0.5),
-            "t99_interval":    flat.get("melodic_interval",0.5),
-            "t99_gain":        flat.get("melodic_gain",    0.8),
             "voice_slow":      flat.get("voice_slow",      0.5),
             "voice_stretch":   flat.get("voice_stretch",   0.5),
             "voice_gain":      flat.get("voice_gain",      0.5),
@@ -184,18 +181,15 @@ def build_session(genomes: dict, mode: dict):
     has_drums  = mode["has_drums"]
     has_chords = mode["has_chords"]
     has_voice  = mode["has_voice"]
-    has_t99    = mode["has_t99"]
 
     # Glitch: occasional chords
     if mode_name == "glitch" and random.random() < 0.3:
         has_chords = True
 
-    # Voice and t99 are probabilistic even when structurally allowed
+    # Voice is probabilistic even when structurally allowed
     voice_prob = 0.6 if mode_name in ("melodic", "sparse") else 0.35
     if has_voice and random.random() > voice_prob:
         has_voice = False
-    if has_t99 and mode_name in ("full", "balanced") and random.random() < 0.4:
-        has_t99 = False
 
     glob = genomes["global"]
     perc = genomes["percussive"]
@@ -211,7 +205,7 @@ def build_session(genomes: dict, mode: dict):
         P.drone(genomes["drone"]),
         P.texture(genomes["texture"], glob),
     ]
-    lines.append(P.melodic(mel, chord_on, total) if has_t99    else "d3 silence")
+    lines.append("d3 silence")
     lines.append(P.drums(perc, glob)             if has_drums  else "d4 silence")
     lines.append(P.chords(mel, chord_on, total, glob) if has_chords else "d6 silence")
     lines.append(P.voice(mel, chord_on, total)   if has_voice  else "d5 silence")

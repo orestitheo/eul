@@ -13,28 +13,9 @@ import os
 sys.path.insert(0, os.path.dirname(__file__))
 
 import grammar
-from banks import DRUM_BANKS, CHORD_SAMPLES, CHORD_LOOPING, _CHORD_WEIGHTS, VOICE_SAMPLES
+from banks import DRUM_BANKS, VOICE_SAMPLES
 
 # ── Interval libraries ─────────────────────────────────────────────────────────
-
-MELODIC_INTERVALS = [
-    "0 7 0 7",
-    "0 7 12 7",
-    "0 3 7 3",
-    "0 4 7 4",
-    "0 5 0 7",
-    "0 7 0 12",
-    "0 3 5 7",
-    "12 7 3 0",
-    "0 4 7 12",
-    "7 12 7 0",
-    "[0,7]",
-    "[0,7,12]",
-    "[0,3,7]",
-    "[0,4,7]",
-    "[0,7] [0,5] [0,7] [0,3]",
-    "[0,4,7] [0,3,7] [0,5,7] [0,7]",
-]
 
 VOICE_INTERVALS = [
     "-2",
@@ -139,87 +120,6 @@ def texture(tex, glob):
         f' # gain {gain}'
         f' # speed (slow 8 $ range {round(1.0 - spd_rand * 0.5, 2)} {round(1.0 + spd_rand * 0.5, 2)} perlin)'
         f' # room {room}'
-    )
-
-
-def melodic(mel, chord_on, total):
-    """
-    Melodic layer (d3). mel: MelodicGenome.
-
-    Picks from non-looping chord banks. Genes control: rhythm density,
-    pitch/speed drift, sample slicing, layering.
-    """
-    from banks import CHORD_BANKS
-    non_looping = {k: v for k, v in CHORD_BANKS.items() if not v.looping}
-    nl_names   = list(non_looping.keys())
-    bank_pos   = mel.get("mel_bank_pos") * (len(nl_names) - 1)
-    bank_name  = nl_names[round(bank_pos)]
-    sample     = f"{bank_name}:0"
-
-    slow_f     = mel.map("mel_slow", 2, 5, integer=True)
-    gain       = mel.map("mel_gain", 0.5, 1.0)
-    idx        = mel.map("mel_interval", 0, len(MELODIC_INTERVALS) - 1, integer=True)
-    notes      = MELODIC_INTERVALS[idx]
-    room       = mel.map("chord_room", 0.7, 1.0)
-    dt         = random.choice([0.375, 0.5])
-    pan_spd    = random.randint(6, 16)
-    begin      = mel.map("mel_begin", 0.0, 0.7)
-
-    # Rhythm — build a sequence with rests driven by mel_rhythm gene
-    # 0=one hit, 0.5=scattered, 1=dense stutter
-    rhythm     = mel.get("mel_rhythm")
-    if rhythm < 0.15:
-        seq = sample
-    else:
-        steps = 8
-        hits  = max(1, round(rhythm * steps))
-        positions = set(round(i * steps / hits) % steps for i in range(hits))
-        seq = " ".join(sample if i in positions else "~" for i in range(steps))
-
-    # Speed/pitch — perlin-modulated drift around a center
-    spd_center = mel.map("mel_speed", 0.4, 1.8)
-    spd_rand   = mel.map("mel_speed_rand", 0.05, 0.6)
-    spd_lo     = round(max(0.2, spd_center - spd_rand), 2)
-    spd_hi     = round(min(2.5, spd_center + spd_rand), 2)
-    spd_slow   = random.randint(4, 12)
-    speed_str  = f'(slow {spd_slow} $ range {spd_lo} {spd_hi} perlin)'
-
-    # Chop — slice sample into N fragments and sequence them
-    chop_n     = round(mel.get("mel_chop") * 7) + 1   # 1=no chop, up to 8
-    if chop_n > 1:
-        speed_param = f' # unit "c" # speed {chop_n}'
-    else:
-        speed_param = f' # speed {speed_str}'
-    pitch_param = f' # note "{notes}"'
-
-    # Layer — optionally stack a second voice at different speed/octave
-    layer_str  = ""
-    if mel.get("mel_layer") > 0.5:
-        layer_spd  = round(spd_center * random.choice([0.5, 0.75, 1.5, 2.0]), 2)
-        layer_spd  = max(0.2, min(2.5, layer_spd))
-        layer_note = random.choice(["-12", "-7", "0", "7", "12"])
-        layer_str  = f', slow {slow_f * 2} $ sound "{sample}" # speed {layer_spd} # note "{layer_note}" # gain {round(gain * 0.5, 2)} # room {room} # pan (slow {pan_spd + 4} $ range 0.6 0.9 sine)'
-
-    core = (
-        f'slow {slow_f} $ sound "{seq}"'
-        f' # begin {begin}'
-        f' # legato 1'
-        f'{speed_param}'
-        f'{pitch_param}'
-        f' # gain {gain}'
-        f' # room {room}'
-        f' # delay 0.5 # delaytime {dt} # delayfeedback 0.4'
-        f' # pan (slow {pan_spd} $ range 0.1 0.9 sine)'
-    )
-
-    if layer_str:
-        sound_expr = f'stack [{core}{layer_str}]'
-    else:
-        sound_expr = core
-
-    return (
-        f'd3 $ whenmod {total} {chord_on} id'
-        f' $ {sound_expr}'
     )
 
 

@@ -18,7 +18,6 @@ MODES = {
         "has_drums":  False,
         "has_chords": False,
         "has_voice":  False,
-        "has_t99":    False,
     },
 
     "sparse": {
@@ -30,7 +29,6 @@ MODES = {
         "has_drums":  False,
         "has_chords": True,
         "has_voice":  True,
-        "has_t99":    True,
     },
 
     "percussive": {
@@ -42,7 +40,6 @@ MODES = {
         "has_drums":  True,
         "has_chords": False,
         "has_voice":  False,
-        "has_t99":    False,
     },
 
     "melodic": {
@@ -54,7 +51,6 @@ MODES = {
         "has_drums":  False,
         "has_chords": True,
         "has_voice":  True,
-        "has_t99":    True,
     },
 
     "full": {
@@ -66,7 +62,6 @@ MODES = {
         "has_drums":  True,
         "has_chords": True,
         "has_voice":  True,
-        "has_t99":    True,
     },
 
     "balanced": {
@@ -78,7 +73,6 @@ MODES = {
         "has_drums":  True,
         "has_chords": True,
         "has_voice":  True,
-        "has_t99":    True,
     },
 
     "glitch": {
@@ -90,7 +84,6 @@ MODES = {
         "has_drums":  True,
         "has_chords": False,
         "has_voice":  False,
-        "has_t99":    False,
     },
 }
 

@@ -3,8 +3,9 @@ from genome import GenomePath
 
 class MelodicGenome(GenomePath):
     """
-    Covers chords (d6), t99 melodic layer (d3), and voice (d5).
-    All three share harmonic context so they evolve together.
+    Covers chords (d6) and voice (d5).
+    All chord banks — looping pads and non-looping instruments alike —
+    are selected via chord_bank_pos and handled in patterns.chords().
     """
     MUTATION_RATE = 0.10
     BIG_JUMP_PROB = 0.04
@@ -20,17 +21,6 @@ class MelodicGenome(GenomePath):
         "chord_delay_wet":  (0.5,  0.0, 1.0, "delay mix"),
         "chord_room":       (0.7,  0.0, 1.0, "reverb amount"),
         "chord_gain":       (0.7,  0.3, 1.0, "chord gain"),
-        # Melodic layer (d3)
-        "mel_slow":         (0.5,  0.0, 1.0, "slow factor, maps to 2-5"),
-        "mel_interval":     (0.5,  0.0, 1.0, "interval pattern index"),
-        "mel_gain":         (0.8,  0.5, 1.0, "melodic gain"),
-        "mel_rhythm":       (0.2,  0.0, 1.0, "rest density — 0=sparse, 1=dense stuttering"),
-        "mel_speed":        (0.5,  0.0, 1.0, "pitch/speed center, maps to 0.4-1.8, perlin-modulated"),
-        "mel_speed_rand":   (0.3,  0.0, 1.0, "pitch drift width (perlin range)"),
-        "mel_bank_pos":     (0.5,  0.0, 1.0, "position across non-looping chord banks"),
-        "mel_begin":        (0.0,  0.0, 0.7, "sample start point"),
-        "mel_chop":         (0.0,  0.0, 1.0, "chop sample into fragments, 0=off, maps to 2-8 chunks"),
-        "mel_layer":        (0.0,  0.0, 1.0, "stack a second voice at different speed/pitch"),
         # Voice layer (d5)
         "voice_slow":       (0.5,  0.0, 1.0, "slow factor, maps to 3-6"),
         "voice_stretch":    (0.5,  0.0, 1.0, "speed stretch, maps to 0.4-1.0"),
