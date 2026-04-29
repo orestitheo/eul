@@ -13,7 +13,7 @@ TidalCycles (patterns) → SuperCollider/SuperDirt (audio engine) → JACK (rout
 - **JACK** — virtual audio cable between SuperCollider and DarkIce (headless, no soundcard needed)
 - **DarkIce** — encodes the JACK audio to MP3 192kbps
 - **Icecast** — serves it as an HTTP stream
-- **scripts/eul/** — genetic self-evolving composer. Each domain evolves on its own clock.
+- **src/eul/** — genetic self-evolving composer. Each domain evolves on its own clock.
 
 ---
 
@@ -35,10 +35,10 @@ TidalCycles (patterns) → SuperCollider/SuperDirt (audio engine) → JACK (rout
 
 ## Genetic composer
 
-The engine evolves itself via `scripts/eul/` running in tmux window 6. Each sound domain is a separate genetic lifeform with its own mutation rate and clock.
+The engine evolves itself via `src/eul/` running in tmux window 6. Each sound domain is a separate genetic lifeform with its own mutation rate and clock.
 
 ```
-scripts/eul/
+src/eul/
   genome.py        — GenomePath base class (mutate, nudge_toward, apply_override)
   genomes/
     drone.py       — DroneGenome      (rate=0.06, clock=8min)

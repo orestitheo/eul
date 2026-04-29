@@ -12,7 +12,7 @@ TidalCycles (patterns) → SuperCollider/SuperDirt (audio) → JACK (routing) �
 - **JACK** — headless virtual audio routing (dummy driver, no soundcard)
 - **DarkIce** — encodes JACK audio to MP3 192kbps
 - **Icecast** — serves HTTP stream on port 8000
-- **scripts/eul/** — genetic self-evolving composer package
+- **src/eul/** — genetic self-evolving composer package
 
 ## Server
 - IP: 204.168.163.80
@@ -31,7 +31,7 @@ TidalCycles (patterns) → SuperCollider/SuperDirt (audio) → JACK (routing) �
 | 3 | Icecast |
 | 4 | DarkIce |
 | 5 | TidalCycles REPL |
-| 6 | evolve loop (`python3 -u /opt/eul/scripts/eul/evolve.py`) |
+| 6 | evolve loop (`python3 -u -m eul.evolve`) |
 
 ## Pattern channels
 | Channel | Role |
@@ -43,14 +43,14 @@ TidalCycles (patterns) → SuperCollider/SuperDirt (audio) → JACK (routing) �
 | d5 | Voice — during chord window |
 | d6 | Chords — looping pads + non-looping banks, whenmod gated |
 
-## Genetic composer (scripts/eul/)
+## Genetic composer (src/eul/)
 The composer is a Python package. Each sound domain is a separate genetic path with its own mutation rate.
 
 - **genome.py** — `GenomePath` base class. All domain genomes extend this. Genes are floats [0,1] mapped to real ranges via `.map()`. Methods: `mutate`, `nudge_toward` (mode pull), `apply_override` (event snap).
 - **genomes/** — one file per domain:
   - `drone.py` — `DroneGenome` (rate=0.06, slow drift)
   - `texture.py` — `TextureGenome` (rate=0.10)
-  - `percussive.py` — `PercussiveGenome` (rate=0.18, most volatile)
+  - `percussive.py` — `PercussiveGenome` (rate=0.06, frequent small nudges)
   - `melodic.py` — `MelodicGenome` (rate=0.10, covers d3+d5+d6)
   - `global_.py` — `GlobalGenome` (rate=0.08, tempo + complexity)
 - **banks.py** — single registry of all sample banks. Add a bank or rename a folder here only. Looping flag on chord banks protects long pads from staccato/glitch slicing.
@@ -63,7 +63,7 @@ The composer is a Python package. Each sound domain is a separate genetic path w
 **Domain clocks** (tunable in `DOMAIN_INTERVALS`):
 | Domain | Clock | Mutation rate | Controls |
 |--------|-------|--------------|---------|
-| `percussive` | 90s | 0.18 | drums — rhythm, bank crossfade, chaos |
+| `percussive` | 25s | 0.06 | drums — rhythm, bank crossfade, chaos |
 | `texture` | 4min | 0.10 | atmospheric layer — density, speed, samples |
 | `melodic` | 5min | 0.10 | chords, t99, voice — pitch, rhythm, delay |
 | `global` | 6min | 0.08 | tempo, complexity, randomness |
@@ -109,7 +109,7 @@ Tune probability: edit `EVENT_PROBABILITIES` in `events.py` (set to `1.0` to for
 
 ## SSH access
 Claude has full SSH access to the server at `root@204.168.163.80`. Always apply changes directly:
-- Edit package locally → `rsync -az scripts/eul/ root@204.168.163.80:/opt/eul/scripts/eul/` → `ssh root@204.168.163.80 "python3 /opt/eul/scripts/eul/evolve.py --once"`
+- Edit package locally → `rsync -az pyproject.toml src root@204.168.163.80:/opt/eul/` → `ssh root@204.168.163.80 "python3 -m eul.evolve --once"`
 - Never ask Oresti to run commands manually unless it requires interactive input
 
 ## Rules
@@ -117,8 +117,8 @@ Claude has full SSH access to the server at `root@204.168.163.80`. Always apply 
 - Short commit messages, don't credit yourself
 - Explain TidalCycles concepts briefly as you use them — Oresti is a SW engineer (6 years, AI/backend) but new to this domain
 - Keep it playful, not academic
-- Always rsync scripts/eul/ to server after changes and run --once to apply immediately
-- Adding a new sample bank: one entry in `banks.py` BANKS dict, then rsync + --once. No other code changes.
+- Always rsync src/eul/ to server after changes and run --once to apply immediately
+- Adding a new sample bank: one entry in `src/eul/banks.py` BANKS dict, then rsync + --once. No other code changes.
 - After SC restarts, always reconnect JACK and run evolve --once
 
 ## Key commands

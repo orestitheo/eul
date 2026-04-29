@@ -56,7 +56,7 @@ def pause_evolve():
 def resume_evolve():
     subprocess.run([
         "tmux", "send-keys", "-t", f"{TMUX_SESSION}:{EVOLVE_WINDOW}",
-        "python3 -u /opt/eul/scripts/evolve.py 2>&1 | tee /var/log/eul/evolve.log", "Enter"
+        "python3 -u -m eul.evolve 2>&1 | tee /var/log/eul/evolve.log", "Enter"
     ])
 
 def build_pattern(bank, kind, slices, gain):

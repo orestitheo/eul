@@ -1,4 +1,4 @@
-from genome import GenomePath
+from ..genome import GenomePath
 
 
 class GlobalGenome(GenomePath):

@@ -24,17 +24,15 @@ import os
 import json
 import time
 
-sys.path.insert(0, os.path.dirname(__file__))
-
-from genomes.drone      import DroneGenome
-from genomes.texture    import TextureGenome
-from genomes.percussive import PercussiveGenome
-from genomes.melodic    import MelodicGenome
-from genomes.global_    import GlobalGenome
-from modes   import MODES, MODE_NAMES, nearest_mode, DOMAIN_KEYS
-from events  import EventManager, EVENTS
-from send    import send, send_all
-import patterns as P
+from .genomes.drone      import DroneGenome
+from .genomes.texture    import TextureGenome
+from .genomes.percussive import PercussiveGenome
+from .genomes.melodic    import MelodicGenome
+from .genomes.global_    import GlobalGenome
+from .modes   import MODES, MODE_NAMES, nearest_mode, DOMAIN_KEYS
+from .events  import EventManager, EVENTS
+from .send    import send, send_all
+from . import patterns as P
 
 STATE_FILE = "/opt/eul/state/genes.json"
 
@@ -42,7 +40,7 @@ STATE_FILE = "/opt/eul/state/genes.json"
 DOMAIN_INTERVALS = {
     "drone":      8 * 60,   # 8 min  — the foundation barely moves
     "texture":    4 * 60,   # 4 min  — breathes noticeably
-    "percussive": 90,       # 90 sec — most volatile
+    "percussive": 25,       # 25 sec — frequent but small nudges
     "melodic":    5 * 60,   # 5 min  — harmonic shifts are slow
     "global":     6 * 60,   # 6 min  — tempo + complexity drift
 }
@@ -330,28 +328,12 @@ def _micro_nudge(genomes: dict, events: EventManager):
         f' # room {tex.map("room", 0.0, 1.0)}'
     )
 
-    # Drums: new rhythm sequence within current bank position
-    from banks import DRUM_BANKS, BANKS
-    bank_pos   = perc.get("bank_pos") * (len(DRUM_BANKS) - 1)
-    bank       = DRUM_BANKS[int(bank_pos)]
-    max_slices = BANKS[bank].slices
-    rest_prob  = perc.get("rest_prob")
-    slice_bias = perc.get("slice_bias")
-    drum_spd   = perc.get("speed")
-    steps      = random.choice([6, 8, 8, 10])
-    seq        = P._drum_seq(bank, steps, max_slices, rest_prob, slice_bias)
-    speed_str  = "slow 2 $ " if drum_spd < 0.33 else ("fast 2 $ " if drum_spd > 0.66 else "")
-    d_gain     = round(random.uniform(0.8, 0.9), 1)
-    total_d    = perc.map("cycle_len", 6, 12, integer=True)
-    drum_on    = max(2, round(total_d * perc.get("window_frac")))
-    send(f'd4 $ whenmod {total_d} {drum_on} id $ {speed_str}sound "{seq}" # gain {d_gain} # room 0')
-
-    # Chords + voice: leave untouched between full rebuilds (long samples play through)
+    # Drums + chords + voice: leave untouched between full rebuilds
 
 
 # ── Entry point ────────────────────────────────────────────────────────────────
 
-if __name__ == "__main__":
+def main():
     genomes, events = load_all()
 
     if "--once" in sys.argv:
@@ -382,7 +364,7 @@ if __name__ == "__main__":
     elif "--event" in sys.argv:
         idx = sys.argv.index("--event")
         if idx + 1 >= len(sys.argv):
-            print(f"Usage: evolve.py --event <name>")
+            print(f"Usage: eul-evolve --event <name>")
             print(f"Available events: {list(EVENTS)}")
             sys.exit(1)
         event_name = sys.argv[idx + 1]
@@ -409,3 +391,7 @@ if __name__ == "__main__":
             _micro_nudge(genomes, events)
             tick_count += 1
             time.sleep(TICK_SECONDS)
+
+
+if __name__ == "__main__":
+    main()

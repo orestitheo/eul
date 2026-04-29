@@ -9,8 +9,8 @@
 #   2. Rsyncs the folder to the server
 #   3. Adds a loadSoundFiles line to the SuperDirt boot config
 #   4. Restarts SuperCollider so the new bank is available
-#   5. Updates evolve.py with the new bank (DRUM_BANKS / CHORD_SAMPLES / VOICE_SAMPLES)
-#   6. Syncs evolve.py to server
+#   5. Runs evolve --once to apply
+# Note: register the bank manually in src/eul/banks.py before running this script.
 
 set -euo pipefail
 
@@ -19,7 +19,6 @@ SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
 LOCAL_SAMPLES="$SCRIPTS_DIR/../samples"
 REMOTE_SAMPLES="/opt/eul/samples"
 BOOT_FILE="/root/.config/SuperCollider/startup.scd"
-EVOLVE="$SCRIPTS_DIR/evolve.py"
 
 if [[ $# -lt 1 ]]; then
   echo "Usage: $0 <path-to-sample-folder>"
@@ -65,61 +64,9 @@ ssh "$SERVER" "
 "
 
 echo "==> Restoring patterns"
-ssh "$SERVER" "python3 /opt/eul/scripts/evolve.py --once"
-
-echo "==> Updating evolve.py"
-python3 - "$EVOLVE" "$FOLDER" "$BANK_NAME" "$COUNT" <<'PYEOF'
-import sys, re
-
-evolve_path, folder, bank, count = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
-text = open(evolve_path).read()
-
-if folder.startswith("percussive/"):
-    if f'"{bank}"' in text:
-        print(f"  {bank} already in DRUM_BANKS, skipping")
-    else:
-        text = re.sub(
-            r'(DRUM_BANKS\s*=\s*\{)',
-            f'\\1\n    "{bank}": {count},',
-            text
-        )
-        print(f"  added \"{bank}\": {count} to DRUM_BANKS")
-
-elif folder.startswith("melodic/chords/"):
-    if f'"{bank}:0"' in text:
-        print(f"  {bank} already in CHORD_SAMPLES, skipping")
-    else:
-        new_entries = " +\n    [f\"{bank}:{{i}}\" for i in range({count})]".replace("{bank}", bank).replace("{count}", str(count))
-        text = re.sub(
-            r'(CHORD_SAMPLES\s*=\s*\([\s\S]*?)\)',
-            lambda m: m.group(0)[:-1] + new_entries + '\n)',
-            text,
-            count=1
-        )
-        print(f"  added {count} entries for {bank} to CHORD_SAMPLES")
-
-elif folder.startswith("melodic/singletone/"):
-    if f'"{bank}:0"' in text:
-        print(f"  {bank} already in VOICE_SAMPLES, skipping")
-    else:
-        text = re.sub(
-            r'(VOICE_SAMPLES\s*=\s*\[)',
-            f'\\1"{bank}:0", ',
-            text
-        )
-        print(f"  added \"{bank}:0\" to VOICE_SAMPLES")
-
-else:
-    print(f"  folder type not recognised — add to evolve.py manually if needed")
-    sys.exit(0)
-
-open(evolve_path, 'w').write(text)
-PYEOF
-
-echo "==> Syncing evolve.py to server"
-rsync -az "$EVOLVE" "$SERVER:/opt/eul/scripts/evolve.py"
+ssh "$SERVER" "python3 -m eul.evolve --once"
 
 echo ""
 echo "Done. Bank: $BANK_NAME ($COUNT samples)"
 echo "  Wait ~25s for SuperDirt to reload, then use: sound \"$BANK_NAME\""
-echo "  evolve.py updated + synced — new bank active from next evolution cycle"
+echo "  Remember to add the bank to src/eul/banks.py and rsync before running this script."

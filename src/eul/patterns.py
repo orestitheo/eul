@@ -7,13 +7,9 @@ Transform backbone is built via grammar.py.
 """
 
 import random
-import sys
-import os
 
-sys.path.insert(0, os.path.dirname(__file__))
-
-import grammar
-from banks import DRUM_BANKS, VOICE_SAMPLES
+from . import grammar
+from .banks import DRUM_BANKS, VOICE_SAMPLES, CHORD_BANKS, BANKS
 
 # ── Interval libraries ─────────────────────────────────────────────────────────
 
@@ -196,8 +192,6 @@ def drums(perc, glob):
 
 def chords(mel, chord_on, total, glob):
     """Chord layer (d6). mel: MelodicGenome, glob: GlobalGenome."""
-    from banks import CHORD_BANKS
-
     # Bank selection driven by gene — drifts across chord banks over time
     bank_names  = list(CHORD_BANKS.keys())
     bank_pos    = mel.get("chord_bank_pos") * (len(bank_names) - 1)
@@ -307,5 +301,4 @@ def voice(mel, chord_on, total):
 
 
 def _drum_bank_slices(bank_name: str) -> int:
-    from banks import BANKS
     return BANKS[bank_name].slices
