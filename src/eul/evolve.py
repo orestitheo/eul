@@ -32,6 +32,7 @@ from .genomes.global_    import GlobalGenome
 from .modes   import MODES, MODE_NAMES, nearest_mode, DOMAIN_KEYS
 from .events  import EventManager, EVENTS
 from .send    import send, send_all
+from .banks   import DRUM_BANKS, CHORD_BANKS, VOICE_SAMPLES
 from . import patterns as P
 
 STATE_FILE = "/opt/eul/state/genes.json"
@@ -360,6 +361,26 @@ def main():
         print()
         for domain, g in genomes.items():
             print(g)
+
+        # Active banks
+        perc = genomes["percussive"]
+        mel  = genomes["melodic"]
+        bank_pos   = perc.get("bank_pos") * (len(DRUM_BANKS) - 1)
+        left_idx   = int(bank_pos)
+        right_idx  = min(left_idx + 1, len(DRUM_BANKS) - 1)
+        mix        = bank_pos - left_idx
+        drum_str   = DRUM_BANKS[left_idx] if mix < 0.5 else f"{DRUM_BANKS[left_idx]} -> {DRUM_BANKS[right_idx]}"
+
+        chord_names = list(CHORD_BANKS.keys())
+        chord_pos   = mel.get("chord_bank_pos") * (len(chord_names) - 1)
+        chord_name  = chord_names[round(chord_pos)]
+
+        print("Active banks:")
+        print(f"  d1  drone")
+        print(f"  d2  texture")
+        print(f"  d3/d6  chords  -> {chord_name}")
+        print(f"  d4  drums   -> {drum_str}")
+        print(f"  d5  voice   -> {', '.join(sorted(set(VOICE_SAMPLES)))}")
 
     elif "--event" in sys.argv:
         idx = sys.argv.index("--event")
