@@ -318,8 +318,7 @@ def chords(mel, chord_on, total, glob):
     backbone   = grammar.wrap_pattern(sound_expr, transforms)
 
     return (
-        f'd6 $ whenmod {total} {chord_on} id'
-        f' $ {backbone}'
+        f'd6 $ {backbone}'
         f'{style_str}'
         f' # gain {gain}'
         f' # hpf {hpf}'
