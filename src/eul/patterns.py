@@ -13,6 +13,19 @@ from .banks import DRUM_BANKS, VOICE_SAMPLES, CHORD_BANKS, BANKS
 
 # ── Interval libraries ─────────────────────────────────────────────────────────
 
+CHORD_INTERVALS = [
+    "0",
+    "0 5",
+    "0 7",
+    "0 -5",
+    "0 3 7",
+    "0 5 0 3",
+    "0 7 5 0",
+    "0 -2 3 7",
+    "0 3 0 -2",
+    "7 5 3 0",
+]
+
 VOICE_INTERVALS = [
     "-2",
     "0 7 0 5",
@@ -206,6 +219,9 @@ def chords(mel, chord_on, total, glob):
 
     slow_f    = mel.map("chord_slow", 8, 24, integer=True) if is_looping else mel.map("chord_slow", 1, 4, integer=True)
     gain      = mel.map("chord_gain", 0.4, 1.0)
+    interval_idx = mel.map("chord_interval", 0, len(CHORD_INTERVALS) - 1, integer=True)
+    notes        = CHORD_INTERVALS[interval_idx % len(CHORD_INTERVALS)]
+    note_str     = f' # note (slow {slow_f} $ "{notes}")' if notes != "0" else ""
     hpf       = random.randint(100, 300)
     pan_slow  = random.randint(4, 10)
     room      = mel.map("chord_room", 0.0, 1.0)
@@ -217,9 +233,22 @@ def chords(mel, chord_on, total, glob):
 
     # Long pads: sustain holds sample for N seconds. loopAt silences long samples.
     if is_looping:
-        sustain    = random.randint(16, 30)
-        speed_pfx  = ''
-        sound_part = f'sound (choose [{chord_list}])'
+        sustain   = random.randint(16, 30)
+        speed_pfx = ''
+        s = [p.strip('"') for p in chord_list.split(', ')]
+        pat_idx = mel.map("chord_rhythm", 0, 5, integer=True)
+        if pat_idx == 0:
+            sound_part = f'sound (choose [{chord_list}])'
+        elif pat_idx == 1:
+            sound_part = f'sound "{s[0]} ~"'
+        elif pat_idx == 2:
+            sound_part = f'sound "~ {s[0]}"'
+        elif pat_idx == 3:
+            sound_part = f'sound "{s[0]} ~ ~ {s[-1]}"'
+        elif pat_idx == 4:
+            sound_part = f'sound "{s[0]} ~ {s[-1]} ~"'
+        else:
+            sound_part = f'sound "{s[0]} ~ ~ ~"'
         style_str  = f' # begin {begin} # sustain {sustain} # legato 1'
     else:
         # Non-looping bank (shxc) — rhythm + speed genes active
@@ -273,6 +302,7 @@ def chords(mel, chord_on, total, glob):
         f' # room {room}'
         f'{delay_str}'
         f' # pan (slow {pan_slow} $ range 0.2 0.8 sine)'
+        f'{note_str}'
     )
 
 

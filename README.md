@@ -27,9 +27,9 @@ TidalCycles (patterns) → SuperCollider/SuperDirt (audio engine) → JACK (rout
 | `./scripts/evolve.sh --print` | Anytime | Prints current genome state, domain intervals, nearest mode |
 | `./scripts/evolve.sh --event <name>` | Anytime | Manually fire a world event |
 | `./scripts/audition.sh` | When tuning gains | Interactive mixer — play banks, adjust gains, get report |
-| `./scripts/add-samples.sh <folder>` | After adding samples | Full workflow: rename, sync, register, restart SC |
-| `./scripts/normalize-samples.sh <folder>` | After adding melodic samples | Compress + normalize to consistent loudness |
-| `./scripts/fade-samples.sh <folder>` | After adding percussive samples | Add short fade-in/out to prevent clicks |
+| `./scripts/add-bank.sh <folder> <strain> [opts]` | Adding a new sample bank | Full workflow: preprocess → audition → register → deploy |
+| `./scripts/normalize-samples.sh <folder>` | Manual preprocessing | Compress + normalize to consistent loudness |
+| `./scripts/fade-samples.sh <folder>` | Manual preprocessing | Add short fade-in/out to prevent clicks |
 
 ---
 
@@ -121,12 +121,14 @@ Banks are registered in `banks.py` using a strain class hierarchy. Strain define
 
 ### Adding a new bank
 
-1. Drop files into `samples/<path>/`
-2. Add one entry to `BANKS` in `banks.py`:
-   ```python
-   "mybank": Chord("melodic/chords/mybank", samples=[0,1,2], weight=2),
-   ```
-3. Rsync and run `--once`. Done.
+```bash
+./scripts/add-bank.sh samples/percussive/mynewkit Drum --slices 20
+./scripts/add-bank.sh samples/melodic/chords/mypad Chord --weight 3
+```
+
+The script handles everything: normalize + fade preprocessing, rsync to server, SuperCollider restart, 15s automated audition on the correct channel, then (if you confirm) registers the bank in `banks.py` and deploys.
+
+Options: `--slices N` (required for Drum), `--weight N`, `--no-loop` (Chord only), `--samples N` (override auto-count), `--skip-prep`.
 
 ### Current banks
 

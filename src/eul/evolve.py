@@ -8,7 +8,7 @@ creating emergent complexity from overlapping cycles.
 Domain intervals (tunable in DOMAIN_INTERVALS):
   drone      — 8 min   (the foundation, barely moves)
   texture    — 4 min   (breathes noticeably)
-  percussive — 90 sec  (most volatile)
+  percussive — 45 sec  (most volatile)
   melodic    — 5 min   (harmonic shifts are slow)
   global     — 6 min   (tempo + complexity drift)
 
@@ -41,7 +41,7 @@ STATE_FILE = "/opt/eul/state/genes.json"
 DOMAIN_INTERVALS = {
     "drone":      8 * 60,   # 8 min  — the foundation barely moves
     "texture":    4 * 60,   # 4 min  — breathes noticeably
-    "percussive": 25,       # 25 sec — frequent but small nudges
+    "percussive": 45,       # 45 sec — frequent but small nudges
     "melodic":    5 * 60,   # 5 min  — harmonic shifts are slow
     "global":     6 * 60,   # 6 min  — tempo + complexity drift
 }
@@ -197,7 +197,10 @@ def build_session(genomes: dict, mode: dict):
     total    = perc.map("cycle_len", 6, 12, integer=True)
     drum_frac = perc.get("window_frac")
     drum_on  = max(2, round(total * drum_frac)) if has_drums else 0
-    chord_on = total - drum_on if has_chords else 0
+
+    chord_total = mel.map("chord_cycle_len", 4, 10, integer=True)
+    chord_frac  = mel.map("chord_window_frac", 0.4, 0.8)
+    chord_on    = max(2, round(chord_total * chord_frac)) if has_chords else 0
 
     lines = [
         P.tempo(glob),
@@ -206,8 +209,8 @@ def build_session(genomes: dict, mode: dict):
     ]
     lines.append("d3 silence")
     lines.append(P.drums(perc, glob)             if has_drums  else "d4 silence")
-    lines.append(P.chords(mel, chord_on, total, glob) if has_chords else "d6 silence")
-    lines.append(P.voice(mel, chord_on, total)   if has_voice  else "d5 silence")
+    lines.append(P.chords(mel, chord_on, chord_total, glob) if has_chords else "d6 silence")
+    lines.append(P.voice(mel, chord_on, chord_total)        if has_voice  else "d5 silence")
 
     return lines, mode_name
 
