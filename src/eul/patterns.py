@@ -26,6 +26,17 @@ CHORD_INTERVALS = [
     "7 5 3 0",
 ]
 
+# Per-hit note pools for non-looping banks — from tense/chromatic to open
+DARK_NOTE_POOLS = [
+    [0, 3, 6],
+    [-1, 1, 3, 6],
+    [-1, 1, 3, 6, -3],
+    [-2, 1, 3, 6, 8],
+    [-1, 1, -2, 3, 6, 8, -3],
+    [0, 3, 5, 7],
+    [0, -1, 5, 7, -3],
+]
+
 VOICE_INTERVALS = [
     "-2",
     "0 7 0 5",
@@ -251,36 +262,49 @@ def chords(mel, chord_on, total, glob):
             sound_part = f'sound "{s[0]} ~ ~ ~"'
         style_str  = f' # begin {begin} # sustain {sustain} # legato 1'
     else:
-        # Non-looping bank (shxc) — rhythm + speed genes active
+        # Non-looping bank (t99, shxc) — rhythmic, per-hit randomness
         rhythm  = mel.get("chord_rhythm")
         density = mel.get("chord_density")
 
-        # Step sequence: 0=single hit, >0=euclidean pattern
+        # Hit pattern
+        steps = 8
         if rhythm < 0.1:
             sound_part = f'sound (choose [{chord_list}])'
         else:
-            steps     = 8
             hits      = max(1, round(rhythm * steps))
             positions = set(round(i * steps / hits) % steps for i in range(hits))
             sample_names = [p.strip('"') for p in chord_list.split(', ')]
             seq       = " ".join(random.choice(sample_names) if i in positions else '~' for i in range(steps))
             sound_part = f'sound "{seq}"'
 
-        # Fast multiplier: 0→1x, 0.5→2x, 1→4x
+        # Speed: gene maps to fast 2/4/8
         if density < 0.33:
-            speed_pfx = ''
-        elif density < 0.66:
             speed_pfx = 'fast 2 $ '
-        else:
+        elif density < 0.66:
             speed_pfx = 'fast 4 $ '
-
-        if chaos > 0.65:
-            end = round(begin + random.uniform(0.1, 0.4), 2)
-            style_str = f' # begin {begin} # end {min(end, 0.99)} # legato 1'
-        elif staccato < 0.15:
-            style_str = f' # begin {begin} # legato {staccato} # cut 1'
         else:
-            style_str = f' # begin {begin} # legato 1'
+            speed_pfx = 'fast 8 $ '
+
+        # Legato mix: staccato gene biases toward short or long per hit
+        if staccato < 0.3:
+            legato_pool = [0.05, 0.05, 0.08, 0.5]
+        elif staccato < 0.6:
+            legato_pool = [0.05, 0.08, 0.5, 2.0]
+        else:
+            legato_pool = [0.08, 0.5, 2.0, 3.0]
+        legato_vals = ', '.join(str(v) for v in legato_pool)
+        style_str = f' # begin {begin} # legato (choose [{legato_vals}])'
+
+        # Per-hit note choice from dark chromatic pool
+        pool_idx  = mel.map("chord_interval", 0, len(DARK_NOTE_POOLS) - 1, integer=True)
+        note_pool = DARK_NOTE_POOLS[pool_idx % len(DARK_NOTE_POOLS)]
+        note_str  = f' # note (choose [{", ".join(str(n) for n in note_pool)}])'
+
+        # Inline variation: sometimes rev + speed bursts driven by chaos
+        variation = 'sometimes rev $ ' if chaos > 0.3 else ''
+        if chaos > 0.5:
+            variation = f'sometimesBy {round(chaos * 0.5, 1)} (fast 2) $ {variation}'
+        speed_pfx = variation + speed_pfx
 
     delay_str = (
         f' # delay {round(delay_wet, 2)}'
