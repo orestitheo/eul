@@ -208,9 +208,6 @@ def drums(perc, glob):
         f' # room 0'
         f' # speed (slow 6 $ range 0.85 1.15 perlin)'
         f' # pan (range 0.3 0.7 rand)'
-        + (f' # delay (sometimes (const {round(chaos * 0.5, 2)}) 0)'
-           f' # delaytime (slow 3 $ range {dt} {round(dt*1.5, 3)} sine)'
-           f' # delayfeedback 0.3' if chaos > 0.4 else '')
     )
 
 
@@ -228,12 +225,12 @@ def chords(mel, chord_on, total, glob):
     picks      = [f"{bank_name}:{i}" for i in random.choices(bank.samples, k=num_picks)]
     chord_list = ", ".join(f'"{c}"' for c in picks)
 
-    slow_f    = mel.map("chord_slow", 8, 24, integer=True) if is_looping else mel.map("chord_slow", 1, 4, integer=True)
-    gain      = mel.map("chord_gain", 0.4, 1.0)
+    slow_f    = mel.map("chord_slow", 4, 12, integer=True) if is_looping else mel.map("chord_slow", 1, 4, integer=True)
+    gain      = mel.map("chord_gain", 0.7, 1.2)
     interval_idx = mel.map("chord_interval", 0, len(CHORD_INTERVALS) - 1, integer=True)
     notes        = CHORD_INTERVALS[interval_idx % len(CHORD_INTERVALS)]
     note_str     = f' # note (slow {slow_f} $ "{notes}")' if notes != "0" else ""
-    hpf       = random.randint(100, 300)
+    hpf       = random.randint(60, 150)
     pan_slow  = random.randint(4, 10)
     room      = mel.map("chord_room", 0.0, 1.0)
     loop_at   = mel.map("chord_loop_len", 1, 8, integer=True)
@@ -244,7 +241,7 @@ def chords(mel, chord_on, total, glob):
 
     # Long pads: sustain holds sample for N seconds. loopAt silences long samples.
     if is_looping:
-        sustain   = random.randint(16, 30)
+        sustain   = slow_f * 2 + random.randint(4, 8)
         speed_pfx = ''
         s = [p.strip('"') for p in chord_list.split(', ')]
         pat_idx = mel.map("chord_rhythm", 0, 5, integer=True)
@@ -341,8 +338,7 @@ def voice(mel, chord_on, total):
     dt      = random.choice([0.375, 0.5, 0.75])
     pan_spd = random.randint(8, 16)
     return (
-        f'd5 $ whenmod {total} {chord_on} id'
-        f' $ slow {slow_f} $ sound "{sample}"'
+        f'd5 $ slow {slow_f} $ sound "{sample}"'
         f' # gain {gain}'
         f' # legato 1'
         f' # speed {stretch}'

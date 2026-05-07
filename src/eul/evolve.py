@@ -186,7 +186,7 @@ def build_session(genomes: dict, mode: dict):
         has_chords = True
 
     # Voice is probabilistic even when structurally allowed
-    voice_prob = 0.6 if mode_name in ("melodic", "sparse") else 0.35
+    voice_prob = 0.85 if mode_name in ("melodic", "sparse") else 0.75
     if has_voice and random.random() > voice_prob:
         has_voice = False
 

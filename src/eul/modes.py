@@ -38,7 +38,7 @@ MODES = {
         "melodic":    {},
         "global":     {"complexity": 0.6, "randomness": 0.6, "tempo_center": 0.7},
         "has_drums":  True,
-        "has_chords": False,
+        "has_chords": True,
         "has_voice":  False,
     },
 
@@ -82,7 +82,7 @@ MODES = {
         "melodic":    {},
         "global":     {"randomness": 0.9, "complexity": 0.8, "tempo_center": 0.6},
         "has_drums":  True,
-        "has_chords": False,
+        "has_chords": True,
         "has_voice":  False,
     },
 }
