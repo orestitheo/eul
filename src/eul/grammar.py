@@ -58,8 +58,8 @@ DRUM_POOL = [
     (_sometimes_fast, lambda ch, co: ch * 0.7),
     (_palindrome,     lambda ch, co: 0.3 + co * 0.4),
     (_iter,           lambda ch, co: 0.2 + co * 0.4),
-    (_scramble,       lambda ch, co: max(0.0, (ch - 0.5) * 2.0)),   # only at chaos > 0.5
-    (_chunk,          lambda ch, co: max(0.0, (ch - 0.4) * 1.5)),   # only at chaos > 0.4
+    (_scramble,       lambda ch, co: max(0.0, (ch - 0.7) * 3.0)),   # only at chaos > 0.7
+    (_chunk,          lambda ch, co: max(0.0, (ch - 0.6) * 2.0)),   # only at chaos > 0.6
 ]
 
 # Tame chord pool — no scramble, chunk, or fast transforms (protects looping pads)

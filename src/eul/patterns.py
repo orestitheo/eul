@@ -197,9 +197,9 @@ def drums(perc, glob):
         f' # room 0'
         f' # speed (slow 6 $ range 0.85 1.15 perlin)'
         f' # pan (range 0.3 0.7 rand)'
-        f' # delay (sometimes (const 0.5) 0)'
-        f' # delaytime (slow 3 $ range {dt} {round(dt*1.5, 3)} sine)'
-        f' # delayfeedback 0.35'
+        + (f' # delay (sometimes (const {round(chaos * 0.5, 2)}) 0)'
+           f' # delaytime (slow 3 $ range {dt} {round(dt*1.5, 3)} sine)'
+           f' # delayfeedback 0.3' if chaos > 0.4 else '')
     )
 
 
