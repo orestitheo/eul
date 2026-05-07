@@ -26,8 +26,8 @@ class MelodicGenome(GenomePath):
         "chord_window_frac":(0.6,  0.0, 1.0, "fraction of cycle chords are active, maps to 0.4-0.8"),
         # Voice layer (d5)
         "voice_slow":       (0.5,  0.0, 1.0, "slow factor, maps to 3-6"),
-        "voice_stretch":    (0.5,  0.0, 1.0, "speed stretch, maps to 0.4-1.0"),
-        "voice_gain":       (0.5,  0.3, 0.7, "voice gain"),
+        "voice_stretch":    (0.4,  0.0, 1.0, "speed stretch, maps to 0.3-0.7"),
+        "voice_gain":       (0.7,  0.6, 1.2, "voice gain"),
         "voice_room":       (0.9,  0.6, 1.0, "voice reverb"),
         "voice_interval":   (0.5,  0.0, 1.0, "voice interval pattern index"),
     }

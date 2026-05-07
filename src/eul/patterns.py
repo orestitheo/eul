@@ -284,11 +284,11 @@ def chords(mel, chord_on, total, glob):
 
         # Legato mix: staccato gene biases toward short or long per hit
         if staccato < 0.3:
-            legato_pool = [0.05, 0.05, 0.08, 0.5]
+            legato_pool = [0.08, 0.5, 1.0, 2.0]
         elif staccato < 0.6:
-            legato_pool = [0.05, 0.08, 0.5, 2.0]
-        else:
             legato_pool = [0.08, 0.5, 2.0, 3.0]
+        else:
+            legato_pool = [0.5, 1.0, 2.0, 4.0]
         legato_vals = ', '.join(str(v) for v in legato_pool)
         style_str = f' # begin {begin} # legato (choose [{legato_vals}])'
 
@@ -330,8 +330,8 @@ def voice(mel, chord_on, total):
     """Voice layer (d5). mel: MelodicGenome."""
     sample  = random.choice(VOICE_SAMPLES)
     slow_f  = mel.map("voice_slow", 3, 6, integer=True)
-    gain    = mel.map("voice_gain", 0.3, 0.7)
-    stretch = mel.map("voice_stretch", 0.4, 1.0)
+    gain    = mel.map("voice_gain", 0.6, 1.2)
+    stretch = mel.map("voice_stretch", 0.3, 0.7)
     room    = mel.map("voice_room", 0.6, 1.0)
     idx     = mel.map("voice_interval", 0, len(VOICE_INTERVALS) - 1, integer=True)
     notes   = VOICE_INTERVALS[idx % len(VOICE_INTERVALS)]

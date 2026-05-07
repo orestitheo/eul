@@ -83,7 +83,7 @@ MODES = {
         "global":     {"randomness": 0.9, "complexity": 0.8, "tempo_center": 0.6},
         "has_drums":  True,
         "has_chords": True,
-        "has_voice":  False,
+        "has_voice":  True,
     },
 }
 
