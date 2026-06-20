@@ -109,7 +109,8 @@ Tune probability: edit `EVENT_PROBABILITIES` in `events.py` (set to `1.0` to for
 
 ## SSH access
 Claude has full SSH access to the server at `root@204.168.163.80`. Always apply changes directly:
-- Edit package locally → `rsync -az pyproject.toml src root@204.168.163.80:/opt/eul/` → `ssh root@204.168.163.80 "python3 -m eul.evolve --once"`
+- Edit package locally → `rsync -az src/eul/ root@204.168.163.80:/opt/eul/eul/` → `ssh root@204.168.163.80 "cd /opt/eul && python3 -m eul.evolve --once"`
+- The live package imports from `/opt/eul/eul/` — deploy there, NOT `/opt/eul/src/eul/` (never imported). Verify a change loaded: `python3 -c "import eul.patterns as p; print('<symbol>' in dir(p))"`
 - Never ask Oresti to run commands manually unless it requires interactive input
 
 ## Rules
@@ -117,8 +118,8 @@ Claude has full SSH access to the server at `root@204.168.163.80`. Always apply 
 - Short commit messages, don't credit yourself
 - Explain TidalCycles concepts briefly as you use them — Oresti is a SW engineer (6 years, AI/backend) but new to this domain
 - Keep it playful, not academic
-- Always rsync src/eul/ to server after changes and run --once to apply immediately
-- Adding a new sample bank: one entry in `src/eul/banks.py` BANKS dict, then rsync + --once. No other code changes.
+- Always rsync src/eul/ to `/opt/eul/eul/` on the server after changes and run --once to apply immediately
+- Adding a new sample bank: `./scripts/add-bank.sh <folder> <strain>` does the full workflow (preprocess, sync, SuperDirt config, audition, banks.py entry, deploy). No other code changes.
 - After SC restarts, always reconnect JACK and run evolve --once
 
 ## Key commands
@@ -129,7 +130,7 @@ Claude has full SSH access to the server at `root@204.168.163.80`. Always apply 
 ./scripts/evolve.sh --print              # print current gene state + nearest mode
 ./scripts/evolve.sh --event <name>       # manually fire a world event
 ./scripts/audition.sh                    # interactive gain mixer
-./scripts/add-samples.sh <folder>        # add new sample bank (full workflow)
+./scripts/add-bank.sh <folder> <strain>  # add new sample bank (full workflow)
 ./scripts/normalize-samples.sh <folder>  # compress/normalize samples
 ./scripts/fade-samples.sh <folder>       # add fade-in/out to remove clicks
 ```
@@ -140,7 +141,7 @@ Claude has full SSH access to the server at `root@204.168.163.80`. Always apply 
 - **`ls` is a reserved TidalCycles identifier** — never name a sample bank `ls`, it conflicts with a Haskell built-in and silences the bank.
 - **SuperDirt needs 6 orbits** — `~dirt.start(57120, [0, 0, 0, 0, 0, 0])` in startup.scd. d1–d6 = orbits 0–5. Default `[0,0]` silences d3–d6.
 - **Drums always need `# room 0`** — SuperDirt global reverb bleeds into drums otherwise.
-- **JACK routing breaks on every SC restart** — ports named `darkice-{PID}:left/right`. add-samples.sh reconnects automatically.
+- **JACK routing breaks on every SC restart** — ports named `darkice-{PID}:left/right`. add-bank.sh reconnects automatically.
 - **`# begin`** — sets playback start point (0.0–1.0). Used on all long samples so each session starts at a different point.
 - **Long pads use `# loopAt N`** — loops the sample every N cycles.
 
