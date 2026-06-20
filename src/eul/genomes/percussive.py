@@ -16,6 +16,10 @@ class PercussiveGenome(GenomePath):
         "rest_prob":   (0.3,  0.0, 0.8, "probability of silence per step"),
         "polyrhythm":  (0.3,  0.0, 1.0, "chance of layering a second rhythm"),
         "chaos":       (0.2,  0.0, 1.0, "how often destructive transforms fire"),
+        "swing":       (0.4,  0.0, 1.0, "shuffle amount — pushes off-beats late, off-grid flow"),
+        "punch":       (0.55, 0.0, 1.0, "accent dynamics + waveshaping drive — hard beats"),
+        "ghost":       (0.3,  0.0, 1.0, "offset ghost-note double a 1/16 late, flowy fills"),
+        "euclid_bias": (0.4,  0.0, 1.0, "chance to render an interlocking euclidean groove vs step seq"),
         "slice_bias":  (0.5,  0.0, 1.0, "which region of the bank to favour, 0=low 1=high"),
         "bank_pos":    (0.0,  0.0, 1.0, "position across bank spectrum — 0=first bank, 1=last bank, in-between=crossfade"),
     }

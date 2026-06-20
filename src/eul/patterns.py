@@ -71,6 +71,26 @@ def _drum_seq(bank, slices, max_slices, rest_prob, slice_bias):
     return " ".join(parts)
 
 
+def _euclid_groove(bank, slices, density, slice_bias):
+    """Two interlocking euclidean voices — the engine of 'flowy but grooving'.
+
+    euclid k n spreads k hits as evenly as possible across n steps (the maths
+    behind clave/world rhythms). A low-region 'kick' voice and a rotated
+    high-region 'hat' voice at different hit-counts interlock into a
+    syncopated groove that never feels grid-locked.
+    """
+    n      = random.choice([8, 8, 16])
+    k_low  = max(2, round(2 + density * (n / 2 - 2)))           # 2..n/2 hits
+    k_high = min(n - 1, random.choice([3, 5, 7, 9]))            # hat voice, never exceeds steps
+    off    = random.choice([0, 1, 2, 3])                        # rotate the hat voice
+    low_idx  = max(0, min(slices - 1, round(slice_bias * 0.3 * (slices - 1))))
+    high_idx = max(0, min(slices - 1, round((0.6 + slice_bias * 0.4) * (slices - 1))))
+    return (
+        f'stack [euclid {k_low} {n} $ sound "{bank}:{low_idx}", '
+        f'euclidOff {k_high} {n} {off} $ sound "{bank}:{high_idx}"]'
+    )
+
+
 # ── Pattern builders ───────────────────────────────────────────────────────────
 
 def tempo(glob):
@@ -154,7 +174,11 @@ def drums(perc, glob):
     complexity = glob.get("complexity")
     drum_spd   = perc.get("speed")
     poly       = perc.get("polyrhythm")
-    gain       = round(random.uniform(0.8, 0.9), 1)
+    density    = perc.get("density")
+    swing      = perc.get("swing")
+    punch      = perc.get("punch")
+    ghost      = perc.get("ghost")
+    euclid_bias = perc.get("euclid_bias")
 
     # Bank position drifts continuously across the spectrum [0, len(DRUM_BANKS)-1].
     # Integer part = left bank, fractional part = crossfade amount toward right bank.
@@ -169,23 +193,24 @@ def drums(perc, glob):
     slices_a    = _drum_bank_slices(bank_a)
     slices_b    = _drum_bank_slices(bank_b)
 
-    steps = []
-    for _ in range(8):
-        if random.random() < rest_prob:
-            steps.append("~")
-        elif random.random() < mix:
-            idx = max(0, min(slices_b - 1, round(random.gauss(slice_bias * (slices_b - 1), slices_b // 3))))
-            steps.append(f"{bank_b}:{idx}")
-        else:
-            idx = max(0, min(slices_a - 1, round(random.gauss(slice_bias * (slices_a - 1), slices_a // 3))))
-            steps.append(f"{bank_a}:{idx}")
-    if all(s == "~" for s in steps):
-        steps[0] = f"{bank_a}:0"
-    seq = " ".join(steps)
-
-    # Gene-driven backbone transforms
-    transforms = grammar.pick_transforms(chaos, complexity, pool="drums")
-    sound_expr = f'sound "{seq}"'
+    # Core rhythm — either an interlocking euclidean groove (off-grid feel) or
+    # the stepped sequence. euclid_bias gene picks which.
+    if random.random() < euclid_bias:
+        sound_expr = _euclid_groove(bank_a, slices_a, density, slice_bias)
+    else:
+        steps = []
+        for _ in range(8):
+            if random.random() < rest_prob:
+                steps.append("~")
+            elif random.random() < mix:
+                idx = max(0, min(slices_b - 1, round(random.gauss(slice_bias * (slices_b - 1), slices_b // 3))))
+                steps.append(f"{bank_b}:{idx}")
+            else:
+                idx = max(0, min(slices_a - 1, round(random.gauss(slice_bias * (slices_a - 1), slices_a // 3))))
+                steps.append(f"{bank_a}:{idx}")
+        if all(s == "~" for s in steps):
+            steps[0] = f"{bank_a}:0"
+        sound_expr = f'sound "{" ".join(steps)}"'
 
     # Speed wrapping
     if drum_spd < 0.33:
@@ -198,17 +223,36 @@ def drums(perc, glob):
         seq2 = _drum_seq(bank_a, 5, slices_a, rest_prob, slice_bias)
         sound_expr = f'stack [{sound_expr}, slow 1.5 $ sound "{seq2}"]'
 
-    backbone = grammar.wrap_pattern(sound_expr, transforms)
-    dt = random.choice([0.25, 0.375, 0.5])
+    # Hard beats: accent gain envelope (strong-weak-mid-weak) + waveshaping drive.
+    # Flat gain sounds machine-like; a dynamic envelope makes hits land.
+    hi  = round(0.85 + punch * 0.45, 2)
+    mid = round(0.85 + punch * 0.15, 2)
+    lo  = 0.78
+    accent = f'"{hi} {lo} {mid} {lo} {round(hi - 0.08, 2)} {lo} {mid} {lo}"'
+    shape  = round(punch * 0.4, 2)
 
-    return (
-        f'd4 $ whenmod {total} {drum_on} id'
-        f' $ {backbone}'
-        f' # gain {gain}'
+    core = (
+        f'{sound_expr}'
+        f' # gain {accent}'
+        f' # shape {shape}'
         f' # room 0'
-        f' # speed (slow 6 $ range 0.85 1.15 perlin)'
+        f' # speed (slow 6 $ range 0.92 1.08 perlin)'
         f' # pan (range 0.3 0.7 rand)'
     )
+
+    # Gene-driven structural transforms (scramble/rev/chunk/...)
+    transforms = grammar.pick_transforms(chaos, complexity, pool="drums")
+    core = grammar.wrap_pattern(core, transforms)
+
+    # Flowy, off-grid feel — applied on top of the finished pattern.
+    # swingBy x 8 delays every other 8th-note (shuffle); superimpose adds a
+    # crushed copy nudged a 1/16 late (ghost double / fill).
+    if swing > 0.1:
+        core = f"swingBy {round(swing * 0.4, 3)} 8 $ {core}"
+    if ghost > 0.4:
+        core = f"superimpose (((1/16) ~>) . (# crush {random.choice([3, 4, 8])})) $ {core}"
+
+    return f'd4 $ whenmod {total} {drum_on} id $ {core}'
 
 
 def chords(mel, chord_on, total, glob):
