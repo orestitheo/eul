@@ -62,6 +62,17 @@ restart_supercollider() {
     sleep 30
 }
 
+restart_tidal() {
+    # Recreate window 5 and boot ghci. Without this REPL, evolve has nowhere to
+    # send patterns ("can't find window: 5") and the stream goes permanently silent.
+    log "  Restarting TidalCycles (window 5) — waiting 25s for ghci/SuperDirt connect"
+    tmux kill-window -t "${TMUX_SESSION}:5" 2>/dev/null || true
+    tmux new-window -t "${TMUX_SESSION}:5" -n tidal
+    sleep 1
+    tmux send-keys -t "${TMUX_SESSION}:5" "cd /opt/eul && ghci -ghci-script /opt/eul/config/tidal_boot.hs" Enter
+    sleep 25
+}
+
 recover() {
     local recovered=0
 
@@ -92,6 +103,15 @@ recover() {
         log "SuperCollider dead"
         restart_supercollider
         reconnect_jack
+        recovered=1
+    fi
+
+    # 5. TidalCycles REPL (window 5 / ghci) — must come after SC so it can connect
+    #    to SuperDirt. If the window or ghci is gone, patterns never reach SuperDirt.
+    if ! tmux list-windows -t "$TMUX_SESSION" -F '#I' 2>/dev/null | grep -qx 5 \
+       || ! pgrep -f tidal_boot.hs > /dev/null 2>&1; then
+        log "TidalCycles REPL dead"
+        restart_tidal
         recovered=1
     fi
 
