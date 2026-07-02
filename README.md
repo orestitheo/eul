@@ -58,6 +58,56 @@ flowchart TB
 
 The engine evolves itself via `src/eul/` running in tmux window 6. Each sound domain is a separate genetic lifeform with its own mutation rate and clock.
 
+### Anatomy of the engine
+
+```mermaid
+flowchart TB
+    classDef geneC fill:#0d1b2a,stroke:#4cc9f0,color:#e0fbfc
+    classDef forceC fill:#1a0f1f,stroke:#c77dff,color:#e0aaff
+    classDef exprC fill:#101c14,stroke:#80ed99,color:#d8f3dc
+    classDef loopC fill:#1c1500,stroke:#ffb703,color:#ffd166
+
+    tick(["⏱ tick — every 30s"]):::loopC --> due{"any domain<br/>clock due?"}:::loopC
+    due -- "no" --> micro["micro-nudge<br/>drone + texture gains/filters breathe"]:::loopC
+    micro --> tick
+    due -- "yes" --> mutate
+
+    subgraph genome["🧬 genome — every knob is a float 0..1"]
+        mutate["mutate<br/>each gene += gauss(0, 0.06–0.10)"]
+        jump["big jump — 2–4% per gene<br/>gauss(0, 0.3): exploration, not drift"]
+        seed["groove_seed ❄ exempt<br/>carried through mutation, beat keeps<br/>its identity — 7% chance: reroll"]
+        mutate -.-> jump
+        mutate -.-> seed
+    end
+
+    mutate --> gravity
+
+    subgraph forces["invisible hands"]
+        gravity["mode gravity<br/>Σ(gene − target)² finds nearest of 7 attractors<br/>nudge toward it, pull 0.10–0.18"]
+        escape["escape pressure<br/>~8 ticks in one mode →<br/>pull toward a random other"]
+        world["🌩 world events<br/>storm · dissolve · silence · crunch<br/>snap genes across domains for 1–5 evolves"]
+        gravity -.-> escape
+    end
+
+    gravity --> express
+    world -.->|"override"| express
+
+    subgraph expr["expression — genotype → phenotype"]
+        express["map genes to sound<br/>density 0.55 → euclid 5 16<br/>swing 0.55 → swingBy 0.22 8"]
+        grammar["grammar<br/>chaos + complexity weight the transform pool<br/>scramble · palindrome · jux rev · iter"]
+        express --> grammar
+    end
+
+    grammar --> send["send only changed channels to Tidal<br/>save genes.json"]:::loopC
+    send --> tick
+
+    class mutate,jump,seed geneC
+    class gravity,escape,world forceC
+    class express,grammar exprC
+```
+
+Blue = genetics, purple = the forces that shape drift, green = how genes become sound. The loop never resolves — that's the point.
+
 ```
 src/eul/
   genome.py        — GenomePath base class (mutate, nudge_toward, apply_override)
