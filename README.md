@@ -4,8 +4,29 @@ Always-on generative music radio station. Streams 24/7 at `http://204.168.163.80
 
 ## How it works
 
-```
-TidalCycles (patterns) → SuperCollider/SuperDirt (audio engine) → JACK (routing) → DarkIce (encoder) → Icecast (HTTP stream)
+```mermaid
+flowchart TB
+    subgraph composer["genetic composer — python loop, 30s tick"]
+        clocks["domain clocks<br/>drums 45s · texture 4m · melodic 5m<br/>global 6m · drone 8m"]
+        mutate["mutate due domains<br/>genes drift, drum groove_seed persists"]
+        modes["mode gravity<br/>nudge toward nearest of 7 attractors<br/>escape pressure after ~8 ticks"]
+        events["world events<br/>storm · dissolve · crunch · silence ...<br/>hard gene overrides, 1–5 evolves"]
+        state[("genes.json<br/>shared with manual<br/>evolve.sh runs")]
+        clocks --> mutate --> modes
+        events -.->|override| modes
+        state <-->|load / save| mutate
+    end
+
+    modes --> build["patterns.py + grammar.py<br/>genes → TidalCycles code"]
+    build -->|"resend only<br/>changed channels"| tidal
+
+    subgraph audio["audio pipeline — tmux, headless"]
+        tidal["TidalCycles REPL<br/>d1 drone · d2 texture · d3/d6 chords<br/>d4 drums · d5 voice"]
+        sd["SuperDirt / SuperCollider<br/>sample banks + fx"]
+        tidal --> sd --> jack["JACK<br/>dummy driver"] --> darkice["DarkIce<br/>mp3 192k"] --> icecast["Icecast<br/>:8000/stream"]
+    end
+
+    icecast --> listener(("24/7<br/>radio"))
 ```
 
 - **TidalCycles** — pattern language. Each `d1`–`d6` line is one audio channel.
