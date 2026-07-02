@@ -83,8 +83,8 @@ BANKS = {
     "akatosh_chord": Chord("melodic/chords/akatosh_chord",samples=list(range(1)), weight=3),
     "blackmirror":   Chord("melodic/chords/blackmirror",  samples=[0],            weight=3),
     "discoveryone":  Chord("melodic/chords/discoveryone", samples=[0],            weight=3),
-    "shxc":          Chord("melodic/chords/shxc",         samples=[0],            weight=3, looping=False),  # can glitch/chop
-    "t99":           Chord("melodic/chords/t99",          samples=[0],            weight=3, looping=False),  # melodic instrument, pitched
+    "shxc":          Chord("melodic/chords/shxc",         samples=[0],            weight=3, looping=False),  # short stab — smeared long via delay/reverb
+    "t99":           Chord("melodic/chords/t99",          samples=[0],            weight=3, looping=False),  # short chord stab — smeared long via delay/reverb
 
     # Voice (d5)
     "madonna":           Voice("melodic/singletone/madonna",       samples=[0]),

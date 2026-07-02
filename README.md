@@ -211,8 +211,8 @@ Options: `--slices N` (required for Drum), `--weight N`, `--no-loop` (Chord only
 | `akatosh_chord` | Chord | `samples/melodic/chords/akatosh_chord/` | 1 pad — looping |
 | `blackmirror` | Chord | `samples/melodic/chords/blackmirror/` | 1 pad — looping |
 | `discoveryone` | Chord | `samples/melodic/chords/discoveryone/` | 1 pad — looping |
-| `shxc` | Chord | `samples/melodic/chords/shxc/` | 1 sample — can glitch |
-| `t99` | Chord | `samples/melodic/chords/t99/` | 1 short chord stab — rhythmic, can glitch |
+| `shxc` | Chord | `samples/melodic/chords/shxc/` | 1 short stab — long reverb/delay tails |
+| `t99` | Chord | `samples/melodic/chords/t99/` | 1 short chord stab — long reverb/delay tails |
 | `madonna` | Voice | `samples/melodic/singletone/madonna/` | Frozen acapella |
 | `akatosh_voice` | Voice | `samples/melodic/singletone/akatosh_voice/` | 1 sample |
 | `discoveryone_voice` | Voice | `samples/melodic/singletone/discoveryone/` | 1 sample |

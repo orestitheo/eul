@@ -168,8 +168,8 @@ Banks are registered in `banks.py` using a strain class hierarchy. Strain define
 | `akatosh_chord` | Chord | `samples/melodic/chords/akatosh_chord/` | looping |
 | `blackmirror` | Chord | `samples/melodic/chords/blackmirror/` | looping, 18s pad |
 | `discoveryone` | Chord | `samples/melodic/chords/discoveryone/` | looping |
-| `shxc` | Chord | `samples/melodic/chords/shxc/` | looping=False, can glitch/stab |
-| `t99` | Chord | `samples/melodic/chords/t99/` | looping=False, short chord stab (1.85s), rhythmic |
+| `shxc` | Chord | `samples/melodic/chords/shxc/` | looping=False, short stab — long reverb/delay tails |
+| `t99` | Chord | `samples/melodic/chords/t99/` | looping=False, short chord stab (1.85s) — long reverb/delay tails |
 | `madonna` | Voice | `samples/melodic/singletone/madonna/` | |
 | `akatosh_voice` | Voice | `samples/melodic/singletone/akatosh_voice/` | |
 | `discoveryone_voice` | Voice | `samples/melodic/singletone/discoveryone/` | |

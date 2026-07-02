@@ -289,7 +289,6 @@ def chords(mel, chord_on, total, glob):
     pan_slow  = random.randint(4, 10)
     room      = mel.map("chord_room", 0.0, 1.0)
     loop_at   = mel.map("chord_loop_len", 1, 8, integer=True)
-    staccato  = mel.map("chord_staccato", 0.05, 0.5)
     delay_wet = mel.map("chord_delay_wet", 0.0, 1.0)
     chaos     = glob.get("randomness")
     begin     = mel.map("chord_begin", 0.0, 0.8)
@@ -313,56 +312,51 @@ def chords(mel, chord_on, total, glob):
         else:
             sound_part = f'sound "{s[0]} ~ ~ ~"'
         style_str  = f' # begin {begin} # sustain {sustain} # legato 1'
+        delay_str = (
+            f' # delay {round(delay_wet, 2)}'
+            f' # delaytime {random.choice([0.25, 0.375, 0.5, 0.75])}'
+            f' # delayfeedback {round(random.uniform(0.2, 0.5), 1)}'
+        ) if delay_wet > 0.2 else ""
     else:
-        # Non-looping bank (t99, shxc) — rhythmic, per-hit randomness
+        # Non-looping bank (t99, shxc) — short stabs smeared long and weird:
+        # sparse hits, per-hit pitch/speed drops, deep reverb + feeding delay
         rhythm  = mel.get("chord_rhythm")
-        density = mel.get("chord_density")
 
-        # Hit pattern
+        # Hit pattern — sparser than before, tails need room to unfold
         steps = 8
         if rhythm < 0.1:
             sound_part = f'sound (choose [{chord_list}])'
         else:
-            hits      = max(1, round(rhythm * steps))
+            hits      = max(1, round(rhythm * steps * 0.5))
             positions = set(round(i * steps / hits) % steps for i in range(hits))
             sample_names = [p.strip('"') for p in chord_list.split(', ')]
             seq       = " ".join(random.choice(sample_names) if i in positions else '~' for i in range(steps))
             sound_part = f'sound "{seq}"'
 
-        # Speed: gene maps to fast 2/4/8
-        if density < 0.33:
-            speed_pfx = 'fast 2 $ '
-        elif density < 0.66:
-            speed_pfx = 'fast 4 $ '
-        else:
-            speed_pfx = 'fast 8 $ '
+        speed_pfx = ''
 
-        # Legato mix: staccato gene biases toward short or long per hit
-        if staccato < 0.3:
-            legato_pool = [0.08, 0.5, 1.0, 2.0]
-        elif staccato < 0.6:
-            legato_pool = [0.08, 0.5, 2.0, 3.0]
-        else:
-            legato_pool = [0.5, 1.0, 2.0, 4.0]
-        legato_vals = ', '.join(str(v) for v in legato_pool)
-        style_str = f' # begin {begin} # legato (choose [{legato_vals}])'
+        # Per-hit playback speed drop — halves stretch the stab an octave
+        # down and twice as long; long legato lets every tail ring out.
+        # begin capped low — these samples are short, keep the body
+        begin = mel.map("chord_begin", 0.0, 0.3)
+        style_str = (
+            f' # begin {begin}'
+            f' # speed (choose [0.5, 0.5, 0.75, 1.0])'
+            f' # legato (choose [2.0, 4.0, 8.0])'
+        )
 
         # Per-hit note choice from dark chromatic pool
         pool_idx  = mel.map("chord_interval", 0, len(DARK_NOTE_POOLS) - 1, integer=True)
         note_pool = DARK_NOTE_POOLS[pool_idx % len(DARK_NOTE_POOLS)]
         note_str  = f' # note (choose [{", ".join(str(n) for n in note_pool)}])'
 
-        # Inline variation: sometimes rev + speed bursts driven by chaos
-        variation = 'sometimes rev $ ' if chaos > 0.3 else ''
-        if chaos > 0.5:
-            variation = f'sometimesBy {round(chaos * 0.5, 1)} (fast 2) $ {variation}'
-        speed_pfx = variation + speed_pfx
-
-    delay_str = (
-        f' # delay {round(delay_wet, 2)}'
-        f' # delaytime {random.choice([0.25, 0.375, 0.5, 0.75])}'
-        f' # delayfeedback {round(random.uniform(0.2, 0.5), 1)}'
-    ) if delay_wet > 0.2 else ""
+        # Always-on delay with real feedback — this is where "long" comes from
+        room      = mel.map("chord_room", 0.5, 1.0)
+        delay_str = (
+            f' # delay {mel.map("chord_delay_wet", 0.4, 0.9)}'
+            f' # delaytime {random.choice([0.375, 0.5, 0.75, 1.0])}'
+            f' # delayfeedback {round(random.uniform(0.5, 0.8), 2)}'
+        )
 
     # Gene-driven backbone transforms (tame chord pool)
     transforms = grammar.pick_transforms(chaos, glob.get("complexity"), pool="chords")
