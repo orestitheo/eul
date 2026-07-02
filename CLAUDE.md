@@ -38,7 +38,7 @@ TidalCycles (patterns) → SuperCollider/SuperDirt (audio) → JACK (routing) �
 |---------|------|
 | d1 | Drone — gene-gated, can silence for stretches |
 | d2 | Texture — cycles in/out |
-| d3 | Melodic layer — non-looping chord banks (t99, shxc), during chord window |
+| d3 | Reserved — always silence in v2 (legacy melodic layer) |
 | d4 | Drums — whenmod gated, never overlaps chords |
 | d5 | Voice — during chord window |
 | d6 | Chords — looping pads + non-looping banks, whenmod gated |
@@ -65,7 +65,7 @@ The composer is a Python package. Each sound domain is a separate genetic path w
 |--------|-------|--------------|---------|
 | `percussive` | 25s | 0.06 | drums — rhythm, bank crossfade, chaos |
 | `texture` | 4min | 0.10 | atmospheric layer — density, speed, samples |
-| `melodic` | 5min | 0.10 | chords, t99, voice — pitch, rhythm, delay |
+| `melodic` | 5min | 0.10 | chords, voice — bank drift, pitch, rhythm, delay |
 | `global` | 6min | 0.08 | tempo, complexity, randomness |
 | `drone` | 8min | 0.06 | foundation — gain, filter sweep, pitch |
 
@@ -90,7 +90,7 @@ Tune probability: edit `EVENT_PROBABILITIES` in `events.py` (set to `1.0` to for
 | minimal | drone + texture only, pure ambient |
 | sparse | drone + texture + chords, no drums |
 | percussive | drone + drums only, no melody |
-| melodic | drone + t99 + chords, no drums |
+| melodic | drone + chords, no drums |
 | full | all layers |
 | balanced | all layers, nothing dominant |
 | glitch | chaotic drums + texture, broken feel |
@@ -169,7 +169,7 @@ Banks are registered in `banks.py` using a strain class hierarchy. Strain define
 | `blackmirror` | Chord | `samples/melodic/chords/blackmirror/` | looping, 18s pad |
 | `discoveryone` | Chord | `samples/melodic/chords/discoveryone/` | looping |
 | `shxc` | Chord | `samples/melodic/chords/shxc/` | looping=False, can glitch/stab |
-| `t99` | Chord | `samples/melodic/chords/t99/` | looping=False, pitched melodic |
+| `t99` | Chord | `samples/melodic/chords/t99/` | looping=False, short chord stab (1.85s), rhythmic |
 | `madonna` | Voice | `samples/melodic/singletone/madonna/` | |
 | `akatosh_voice` | Voice | `samples/melodic/singletone/akatosh_voice/` | |
 | `discoveryone_voice` | Voice | `samples/melodic/singletone/discoveryone/` | |

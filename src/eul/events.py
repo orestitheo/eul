@@ -168,8 +168,8 @@ class EventManager:
         overrides = dict(event.overrides)
         if name == "harmonic_shift":
             overrides["melodic"] = {
-                "t99_interval":   round(random.random(), 3),
                 "voice_interval": round(random.random(), 3),
+                "chord_bank_pos": round(random.random(), 3),
             }
             overrides["drone"] = {"pitch": round(random.random(), 3), "room": 0.9}
         _apply_overrides(genomes, overrides)

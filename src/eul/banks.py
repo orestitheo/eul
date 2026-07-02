@@ -78,7 +78,7 @@ BANKS = {
     # Texture (d2)
     "texture":   Texture("texture", samples=list(range(5))),
 
-    # Chords (d6) + melodic instrument (d3)
+    # Chords (d6)
     # All Chord strain → exclusive (one at a time), but looping is per-bank
     "akatosh_chord": Chord("melodic/chords/akatosh_chord",samples=list(range(1)), weight=3),
     "blackmirror":   Chord("melodic/chords/blackmirror",  samples=[0],            weight=3),

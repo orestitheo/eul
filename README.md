@@ -134,7 +134,7 @@ Each domain evolves independently. They fall in and out of phase, creating emerg
 |--------|-------|--------------|---------|
 | `percussive` | 90s | 0.18 | drums — rhythm, bank crossfade, chaos |
 | `texture` | 4min | 0.10 | atmospheric layer — density, speed, samples |
-| `melodic` | 5min | 0.10 | chords, t99, voice — pitch, rhythm, delay |
+| `melodic` | 5min | 0.10 | chords, voice — bank drift, pitch, rhythm, delay |
 | `global` | 6min | 0.08 | tempo, complexity, randomness |
 | `drone` | 8min | 0.06 | foundation — gain, filter sweep, pitch |
 
@@ -212,7 +212,7 @@ Options: `--slices N` (required for Drum), `--weight N`, `--no-loop` (Chord only
 | `blackmirror` | Chord | `samples/melodic/chords/blackmirror/` | 1 pad — looping |
 | `discoveryone` | Chord | `samples/melodic/chords/discoveryone/` | 1 pad — looping |
 | `shxc` | Chord | `samples/melodic/chords/shxc/` | 1 sample — can glitch |
-| `t99` | Chord | `samples/melodic/chords/t99/` | 1 melodic instrument — can glitch |
+| `t99` | Chord | `samples/melodic/chords/t99/` | 1 short chord stab — rhythmic, can glitch |
 | `madonna` | Voice | `samples/melodic/singletone/madonna/` | Frozen acapella |
 | `akatosh_voice` | Voice | `samples/melodic/singletone/akatosh_voice/` | 1 sample |
 | `discoveryone_voice` | Voice | `samples/melodic/singletone/discoveryone/` | 1 sample |
