@@ -19,34 +19,34 @@ import random
 # fn(chaos, complexity) -> TidalCycles operator string
 # weight_fn(chaos, complexity) -> float weight (higher = more likely to be picked)
 
-def _every_rev(chaos, complexity):
+def _every_rev(chaos, complexity, rng):
     interval = max(2, round(2 + (1 - chaos) * 6))   # 2 at high chaos, 8 at low
     return f"every {interval} rev"
 
-def _every_fast(chaos, complexity):
+def _every_fast(chaos, complexity, rng):
     interval = max(3, round(3 + (1 - chaos) * 5))
     return f"every {interval} (fast 2)"
 
-def _jux_rev(chaos, complexity):
+def _jux_rev(chaos, complexity, rng):
     interval = max(3, round(3 + (1 - chaos) * 4))
     return f"every {interval} (jux rev)"
 
-def _sometimes_fast(chaos, complexity):
+def _sometimes_fast(chaos, complexity, rng):
     return "sometimes (fast 2)"
 
-def _scramble(chaos, complexity):
-    n = random.choice([4, 8])
+def _scramble(chaos, complexity, rng):
+    n = rng.choice([4, 8])
     return f"scramble {n}"
 
-def _chunk(chaos, complexity):
-    n = random.choice([4, 8])
+def _chunk(chaos, complexity, rng):
+    n = rng.choice([4, 8])
     return f"chunk {n} (fast 2)"
 
-def _palindrome(chaos, complexity):
+def _palindrome(chaos, complexity, rng):
     return "palindrome"
 
-def _iter(chaos, complexity):
-    n = random.choice([4, 8])
+def _iter(chaos, complexity, rng):
+    n = rng.choice([4, 8])
     return f"iter {n}"
 
 
@@ -76,11 +76,12 @@ POOLS = {
 }
 
 
-def pick_transforms(chaos: float, complexity: float, pool: str = "drums", max_n: int = None) -> list:
+def pick_transforms(chaos: float, complexity: float, pool: str = "drums", max_n: int = None, rng=random) -> list:
     """
     Select 0-N TidalCycles operator strings to wrap a pattern with.
     max_n defaults to min(4, round(complexity * 4)).
     pool: "drums" or "chords"
+    rng: pass a seeded random.Random to make selection stable (groove identity)
     """
     if max_n is None:
         max_n = min(4, round(complexity * 4))
@@ -99,8 +100,8 @@ def pick_transforms(chaos: float, complexity: float, pool: str = "drums", max_n:
         w = [weights[i] for i in available]
         if sum(w) == 0:
             break
-        chosen_i = random.choices(available, weights=w, k=1)[0]
-        selected.append(fns[chosen_i](chaos, complexity))
+        chosen_i = rng.choices(available, weights=w, k=1)[0]
+        selected.append(fns[chosen_i](chaos, complexity, rng))
         available.remove(chosen_i)
 
     return selected

@@ -54,16 +54,16 @@ def _euclidean_hits(density_gene, steps=8):
     return max(1, round(density_gene * steps))
 
 
-def _drum_seq(bank, slices, max_slices, rest_prob, slice_bias):
+def _drum_seq(bank, slices, max_slices, rest_prob, slice_bias, rng):
     """Build a drum sequence of `slices` steps from `bank`."""
     parts = []
     for _ in range(slices):
-        if random.random() < rest_prob:
+        if rng.random() < rest_prob:
             parts.append("~")
         else:
             center = round(slice_bias * (max_slices - 1))
             spread = max(1, max_slices // 3)
-            idx    = int(random.gauss(center, spread))
+            idx    = int(rng.gauss(center, spread))
             idx    = max(0, min(max_slices - 1, idx))
             parts.append(f"{bank}:{idx}")
     if all(p == "~" for p in parts):
@@ -71,18 +71,22 @@ def _drum_seq(bank, slices, max_slices, rest_prob, slice_bias):
     return " ".join(parts)
 
 
-def _euclid_groove(bank, slices, density, slice_bias):
+def _euclid_groove(bank, slices, density, slice_bias, rotation, rng):
     """Two interlocking euclidean voices — the engine of 'flowy but grooving'.
 
     euclid k n spreads k hits as evenly as possible across n steps (the maths
     behind clave/world rhythms). A low-region 'kick' voice and a rotated
     high-region 'hat' voice at different hit-counts interlock into a
     syncopated groove that never feels grid-locked.
+
+    Structural draws come from the seeded rng (groove identity); density and
+    rotation are continuous genes, so their drift nudges hit-count and
+    syncopation one step at a time on the same skeleton.
     """
-    n      = random.choice([8, 8, 16])
+    n      = rng.choice([8, 8, 16])
     k_low  = max(2, round(2 + density * (n / 2 - 2)))           # 2..n/2 hits
-    k_high = min(n - 1, random.choice([3, 5, 7, 9]))            # hat voice, never exceeds steps
-    off    = random.choice([0, 1, 2, 3])                        # rotate the hat voice
+    k_high = min(n - 1, rng.choice([3, 5, 7, 9]))               # hat voice, never exceeds steps
+    off    = round(rotation * (n // 2))                         # gene-driven rotation — drifts in small steps
     low_idx  = max(0, min(slices - 1, round(slice_bias * 0.3 * (slices - 1))))
     high_idx = max(0, min(slices - 1, round((0.6 + slice_bias * 0.4) * (slices - 1))))
     return (
@@ -164,7 +168,14 @@ def texture(tex, glob):
 
 
 def drums(perc, glob):
-    """Percussion layer (d4). perc: PercussiveGenome, glob: GlobalGenome."""
+    """Percussion layer (d4). perc: PercussiveGenome, glob: GlobalGenome.
+
+    All structural randomness comes from an rng seeded by the groove_seed
+    gene, which persists across mutations — so successive evolves reshape
+    the SAME beat (hits, swing, accents, rotation drift) instead of rolling
+    a new one. The beat only rerolls when the genome rerolls its seed.
+    """
+    rng        = random.Random(int(perc.get("groove_seed") * 1e9))
     total      = perc.map("cycle_len", 6, 12, integer=True)
     drum_frac  = perc.get("window_frac")
     drum_on    = max(2, round(total * drum_frac))
@@ -195,18 +206,18 @@ def drums(perc, glob):
 
     # Core rhythm — either an interlocking euclidean groove (off-grid feel) or
     # the stepped sequence. euclid_bias gene picks which.
-    if random.random() < euclid_bias:
-        sound_expr = _euclid_groove(bank_a, slices_a, density, slice_bias)
+    if rng.random() < euclid_bias:
+        sound_expr = _euclid_groove(bank_a, slices_a, density, slice_bias, perc.get("rotation"), rng)
     else:
         steps = []
         for _ in range(8):
-            if random.random() < rest_prob:
+            if rng.random() < rest_prob:
                 steps.append("~")
-            elif random.random() < mix:
-                idx = max(0, min(slices_b - 1, round(random.gauss(slice_bias * (slices_b - 1), slices_b // 3))))
+            elif rng.random() < mix:
+                idx = max(0, min(slices_b - 1, round(rng.gauss(slice_bias * (slices_b - 1), slices_b // 3))))
                 steps.append(f"{bank_b}:{idx}")
             else:
-                idx = max(0, min(slices_a - 1, round(random.gauss(slice_bias * (slices_a - 1), slices_a // 3))))
+                idx = max(0, min(slices_a - 1, round(rng.gauss(slice_bias * (slices_a - 1), slices_a // 3))))
                 steps.append(f"{bank_a}:{idx}")
         if all(s == "~" for s in steps):
             steps[0] = f"{bank_a}:0"
@@ -220,7 +231,7 @@ def drums(perc, glob):
 
     # Polyrhythm layer
     if poly > 0.5:
-        seq2 = _drum_seq(bank_a, 5, slices_a, rest_prob, slice_bias)
+        seq2 = _drum_seq(bank_a, 5, slices_a, rest_prob, slice_bias, rng)
         sound_expr = f'stack [{sound_expr}, slow 1.5 $ sound "{seq2}"]'
 
     # Hard beats: accent gain envelope (strong-weak-mid-weak) + waveshaping drive.
@@ -241,7 +252,7 @@ def drums(perc, glob):
     )
 
     # Gene-driven structural transforms (scramble/rev/chunk/...)
-    transforms = grammar.pick_transforms(chaos, complexity, pool="drums")
+    transforms = grammar.pick_transforms(chaos, complexity, pool="drums", rng=rng)
     core = grammar.wrap_pattern(core, transforms)
 
     # Flowy, off-grid feel — applied on top of the finished pattern.
@@ -250,7 +261,7 @@ def drums(perc, glob):
     if swing > 0.1:
         core = f"swingBy {round(swing * 0.4, 3)} 8 $ {core}"
     if ghost > 0.4:
-        core = f"superimpose (((1/16) ~>) . (# crush {random.choice([3, 4, 8])})) $ {core}"
+        core = f"superimpose (((1/16) ~>) . (# crush {rng.choice([3, 4, 8])})) $ {core}"
 
     return f'd4 $ whenmod {total} {drum_on} id $ {core}'
 

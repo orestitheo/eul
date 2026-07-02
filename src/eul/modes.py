@@ -67,7 +67,7 @@ MODES = {
     "balanced": {
         "drone":      {"gain": 0.7},
         "texture":    {},
-        "percussive": {"window_frac": 0.5},
+        "percussive": {"window_frac": 0.75},
         "melodic":    {"chord_gain": 0.7},
         "global":     {"complexity": 0.5, "randomness": 0.5, "tempo_center": 0.5},
         "has_drums":  True,
