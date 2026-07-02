@@ -55,6 +55,17 @@ EVENT_TICK_EVERY = 6   # every ~3 min
 # After this many consecutive domain ticks in the same mode, start nudging away
 MODE_ESCAPE_AFTER = 8  # ~8 domain ticks — roughly 12 min for percussive, longer for drone
 
+# Which Tidal channels each domain owns — only these get resent when it evolves,
+# so channels whose domain isn't due keep whatever is currently running.
+DOMAIN_CHANNELS = {
+    "drone":      ["d1"],
+    "texture":    ["d2"],
+    "percussive": ["d4"],
+    "melodic":    ["d3", "d5", "d6"],
+    "global":     ["tempo", "d2", "d4", "d6"],
+}
+CHANNEL_ORDER = ["tempo", "d1", "d2", "d3", "d4", "d5", "d6"]
+
 
 # ── State persistence ──────────────────────────────────────────────────────────
 
@@ -152,6 +163,13 @@ def load_all(path=STATE_FILE):
     return genomes, events
 
 
+def _state_mtime(path=STATE_FILE):
+    try:
+        return os.path.getmtime(path)
+    except OSError:
+        return 0.0
+
+
 def save_all(genomes: dict, events: EventManager, path=STATE_FILE):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     data = {
@@ -169,10 +187,10 @@ def save_all(genomes: dict, events: EventManager, path=STATE_FILE):
 
 # ── Session building ───────────────────────────────────────────────────────────
 
-def build_session(genomes: dict, mode: dict):
+def build_session(genomes: dict):
     """
     Determine which layers are active and build all pattern lines.
-    Returns (list_of_lines, mode_name).
+    Returns ({channel: line}, mode_name).
     """
     mode_name, _ = nearest_mode(genomes)
     mode = MODES[mode_name]
@@ -202,15 +220,15 @@ def build_session(genomes: dict, mode: dict):
     chord_frac  = mel.map("chord_window_frac", 0.4, 0.8)
     chord_on    = max(2, round(chord_total * chord_frac)) if has_chords else 0
 
-    lines = [
-        P.tempo(glob),
-        P.drone(genomes["drone"]),
-        P.texture(genomes["texture"], glob),
-    ]
-    lines.append("d3 silence")
-    lines.append(P.drums(perc, glob)             if has_drums  else "d4 silence")
-    lines.append(P.chords(mel, chord_on, chord_total, glob) if has_chords else "d6 silence")
-    lines.append(P.voice(mel, chord_on, chord_total)        if has_voice  else "d5 silence")
+    lines = {
+        "tempo": P.tempo(glob),
+        "d1": P.drone(genomes["drone"]),
+        "d2": P.texture(genomes["texture"], glob),
+        "d3": "d3 silence",
+        "d4": P.drums(perc, glob)                          if has_drums  else "d4 silence",
+        "d5": P.voice(mel, chord_on, chord_total)          if has_voice  else "d5 silence",
+        "d6": P.chords(mel, chord_on, chord_total, glob)   if has_chords else "d6 silence",
+    }
 
     return lines, mode_name
 
@@ -278,20 +296,30 @@ def tick(genomes: dict, events: EventManager, last_evolved: dict, tick_count: in
             mode_streak[current_mode] = 1
 
     # World events on their own cadence
-    event_str = ""
+    triggered = None
     if tick_count % EVENT_TICK_EVERY == 0:
         triggered = events.tick(genomes)
-        if triggered:
-            event_str = f" [event: {triggered}]"
-            if triggered not in changed:
-                changed.extend(events.active.keys())
 
-    if changed:
-        mode_name, _ = nearest_mode(genomes)
-        lines, mode_name = build_session(genomes, MODES[mode_name])
-        changed_str = "+".join(changed)
-        print(f"  [{changed_str}] → mode: {mode_name}{event_str}")
-        send_all(lines)
+    if changed or triggered:
+        lines, mode_name = build_session(genomes)
+        prev_mode = mode_streak.get("_sent_mode")
+
+        # Only resend channels owned by the domains that actually evolved.
+        # Events override genes across domains, and a mode flip changes which
+        # layers are active — both force a full resend.
+        if triggered or mode_name != prev_mode:
+            to_send = CHANNEL_ORDER
+        else:
+            chans = set()
+            for domain in changed:
+                chans.update(DOMAIN_CHANNELS[domain])
+            to_send = [c for c in CHANNEL_ORDER if c in chans]
+        mode_streak["_sent_mode"] = mode_name
+
+        event_str = f" [event: {triggered}]" if triggered else ""
+        changed_str = "+".join(changed) if changed else "event"
+        print(f"  [{changed_str}] → mode: {mode_name}{event_str} → {','.join(to_send)}")
+        send_all([lines[c] for c in to_send])
         save_all(genomes, events)
 
     return last_evolved
@@ -344,9 +372,9 @@ def main():
         # Force-evolve all domains once and send
         for domain in genomes:
             evolve_domain(domain, genomes, {})
-        lines, mode_name = build_session(genomes, MODES[nearest_mode(genomes)[0]])
+        lines, mode_name = build_session(genomes)
         print(f"Evolving all... [mode: {mode_name}]")
-        send_all(lines)
+        send_all([lines[c] for c in CHANNEL_ORDER])
         save_all(genomes, events)
 
     elif "--micro" in sys.argv:
@@ -395,8 +423,8 @@ def main():
         try:
             events.fire(event_name, genomes)
             print(f"Fired event: {event_name}")
-            lines, mode_name = build_session(genomes, MODES[nearest_mode(genomes)[0]])
-            send_all(lines)
+            lines, mode_name = build_session(genomes)
+            send_all([lines[c] for c in CHANNEL_ORDER])
             save_all(genomes, events)
         except ValueError as e:
             print(e)
@@ -410,9 +438,17 @@ def main():
         last_evolved = {d: now - (i * TICK_SECONDS) for i, d in enumerate(DOMAIN_INTERVALS)}
         mode_streak = {}
         tick_count = 0
+        state_mtime = _state_mtime()
         while True:
+            # If the state file changed on disk (manual evolve.sh --once /
+            # --event ran in another process), reload it so the next mutation
+            # starts from that state instead of regravitating to stale memory.
+            if _state_mtime() != state_mtime:
+                genomes, events = load_all()
+                print("  [picked up external gene state — evolving from it]")
             last_evolved = tick(genomes, events, last_evolved, tick_count, mode_streak)
             _micro_nudge(genomes, events)
+            state_mtime = _state_mtime()
             tick_count += 1
             time.sleep(TICK_SECONDS)
 
